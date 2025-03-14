@@ -1,0 +1,85 @@
+@font-face {
+    font-family: "BPG_upper";
+    src:url("fonts/bpg-arial-caps-webfont.ttf");
+}
+
+@font-face {
+    font-family: "BPG_lower";
+	src:url("fonts/bpg-arial-webfont.ttf");
+}
+
+harlow{
+    font-family:"BPG_upper";
+	font-family:"BPG_lower";
+}
+
+.main-header .logo {
+  font-family: "BPG_upper";
+  font-weight: bold;
+  font-size: 24px;
+}
+
+.reveal section del,
+.reveal section p,
+.reveal section li,
+.reveal section ul{
+  font-family: BPG_lower;
+}
+
+h1 {
+  font-size: 18px;
+  font-family: "BPG_upper";
+}
+
+h2 {
+  font-size: 14px;
+  font-family: "BPG_upper";
+}
+
+h3 {
+  font-size: 12px;
+  font-family: "BPG_upper";
+}
+
+body{ /* Normal  */
+      font-size: 12px;
+	  font-family: "BPG_lower";
+}
+
+.tg  {border-collapse:collapse;
+		border-spacing:0;
+		border:none;
+		border-color:#aabcfe;
+}
+.tg td{font-family:BPG_lower;
+		font-size:10px;
+		padding:10px 5px;
+		border-style:solid;
+		border-width:0px;
+		overflow:hidden;
+		word-break:normal;
+		border-color:#aabcfe;
+		color:#669;
+		background-color:#e8edff;
+}
+.tg th{font-family:BPG_upper;
+		font-size:12px;
+		font-weight:normal;
+		padding:10px 5px;
+		border-style:solid;
+		border-width:0px;
+		overflow:hidden;
+		word-break:normal;
+		border-color:#aabcfe;
+		color:#039;
+		background-color:#b9c9fe;
+}
+.tg .tg-7btt{font-weight:bold;
+				border-color:inherit;
+				text-align:center;
+				vertical-align:top
+}
+.tg .tg-0pky{border-color:inherit;
+		text-align:left;
+		vertical-align:top
+}
