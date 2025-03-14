@@ -2,8 +2,8 @@ name: Rebuild
 
 on:
   push: {branches: [main]}
-  # Workflow runs every 2 hours
-  schedule: [{cron: "0 */2 * * *"}]
+  # Workflow runs daily at midnight UTC
+  schedule: [{cron: "0 0 * * *"}]
   workflow_dispatch: {}
 
 permissions:
