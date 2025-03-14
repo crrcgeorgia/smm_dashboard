@@ -37,12 +37,13 @@ jobs:
       uses: r-lib/actions/setup-r-dependencies@v2
       with:
         packages: |
-          any::readr 
-          any::dplyr
+          any::readxl 
+          any::tidyverse
 
     - uses: actions/setup-node@v4
       with:
         node-version: 20
+        cache-dependency-path: package-lock.json
         cache: 'yarn'
     - run: yarn --frozen-lockfile
     
