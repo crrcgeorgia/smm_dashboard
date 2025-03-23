@@ -26,6 +26,14 @@ const narratives = FileAttachment("data/narratives_all.csv").csv({ typed: true }
     n: +d.n  // ensure numeric type
   }))
 );
+
+const actors = FileAttachment("data/actors_all.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    P_Date: new Date(d.P_Date),
+    n: +d.n  // ensure numeric type
+  }))
+);
 ```
 
 
@@ -82,8 +90,10 @@ const startDate = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMont
 // Define aggregatedNarrativesChart variable
 let aggregatedNarrativesChart;
 
-// Function to update the chart based on date inputs
+
+// Function to update the chart based on date inputs and selected tab
 function updateChart() {
+  const selectedTab = document.querySelector(".tab.active").dataset.tab;
   let filteredNarratives = [];
   if (startDate.value && endDate.value) {
     filteredNarratives = narratives.filter(d => 
@@ -91,8 +101,18 @@ function updateChart() {
     );
   }
 
+  let dataToPlot;
+
+  if (selectedTab === "all") {
+    dataToPlot = filteredNarratives;
+  } else {
+    dataToPlot = filteredNarratives.filter(d => d.monitoring_group === selectedTab.value);
+  }
+
+
+
   const aggregatedTop5 = Object.entries(
-    filteredNarratives.reduce((acc, { narrative_text, n }) => {
+    dataToPlot.reduce((acc, { narrative_text, n }) => {
       acc[narrative_text] = (acc[narrative_text] || 0) + n;
       return acc;
     }, {})
@@ -101,19 +121,19 @@ function updateChart() {
   .slice(0, 7);
 
   aggregatedNarrativesChart = Plot.plot({
-    width: 700,  // Adjust width as needed
-    height: 400, // Adjust height as needed
+    width: 700,
+    height: 400,
     marginLeft: 150,
     marks: [
       Plot.barX(aggregatedTop5, {
-        x: ([,count]) => count,
+        x: ([, count]) => count,
         y: ([text]) => text,
-        sort: {y: "x", reverse: true},
+        sort: { y: "x", reverse: true },
         tip: true
       }),
       Plot.ruleX([0])
     ],
-    x: {label: "Frequency"},
+    x: { label: "Frequency" },
     y: {
       label: null,
       tickFormat: d => {
@@ -137,14 +157,38 @@ function updateChart() {
   document.getElementById("aggregatedNarrativesChartDiv").appendChild(aggregatedNarrativesChart);
 }
 
-// Update chart when dates change
-startDate.addEventListener("input", updateChart);
-endDate.addEventListener("input", updateChart);
+// Add tabs for filtering by monitoring group
+const tabs = [
+  { label: "ყველა", value: "all" },
+  { label: "აზერბაიჯანულენოვანი სეგმენტი", value: "აზერბაიჯანულენოვანი სეგმენტი" },
+  { label: "აჭარის სეგმენტი", value: "აჭარის სეგმენტი" },
+  { label: "სომხურენოვანი სეგმენტი", value: "სომხურენოვანი სეგმენტი" },
+  { label: "სხვა", value: "სხვა" }
+];
+
+const tabsContainer = document.createElement("div");
+tabsContainer.className = "tabs";
+tabs.forEach(tab => {
+  const tabElement = document.createElement("button");
+  tabElement.className = "tab";
+  tabElement.dataset.tab = tab.value;
+  tabElement.textContent = tab.label;
+  if (tab.value === "all") tabElement.classList.add("active");
+  tabElement.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tabElement.classList.add("active");
+    updateChart();
+  });
+  tabsContainer.appendChild(tabElement);
+});
+
+document.getElementById("aggregatedNarrativesChartDiv").before(tabsContainer);
 
 // Wait for data to load and then display the initial chart
 Promise.all([dailyPosts, narratives]).then(() => {
   updateChart();
 });
+
 ```
 
 <div class="grid grid-cols-4">
