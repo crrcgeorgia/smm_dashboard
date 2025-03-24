@@ -80,114 +80,42 @@ const dates = narratives.map(d => new Date(d.P_Date));
 const minDate = new Date(Math.min(...dates));
 const maxDate = new Date(Math.max(...dates))
 
-```
-
-```js
-// Define date inputs
 const endDate = Inputs.date({ value: new Date(maxDate), label: "აარჩიეთ საბოლოო თარიღი" });
 const startDate = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
 
-// Define aggregatedNarrativesChart variable
-let aggregatedNarrativesChart;
+const tabs = document.querySelectorAll('.tabs input[type="radio"]');
+const panels = document.querySelectorAll('.tab-panels .tab-panel');
 
+const tabMappings = {
+  "All": "chart-all",
+  "აზერბაიჯანულენოვანი სეგმენტი": "chart-az",
+  "აჭარის სეგმენტი": "chart-adjara",
+  "სომხურენოვანი სეგმენტი": "chart-arm",
+  "სხვა": "chart-other"
+};
 
-// Function to update the chart based on date inputs and selected tab
-function updateChart() {
-  const selectedTab = document.querySelector(".tab.active").dataset.tab;
-  let filteredNarratives = [];
-  if (startDate.value && endDate.value) {
-    filteredNarratives = narratives.filter(d => 
-      d.P_Date >= startDate.value && d.P_Date <= endDate.value
-    );
+function renderChart(group,id){
+  let data=narratives.filter(d=>(group==='All'||d.monitoring_group===group)&&d.P_Date>=startDate.value&&d.P_Date<=endDate.value);
+  if(data.length===0){
+    document.getElementById(id).innerHTML='<p>No data available for this group between selected dates</p>';
+    return;
   }
-
-  let dataToPlot;
-
-  if (selectedTab === "all") {
-    dataToPlot = filteredNarratives;
-  } else {
-    dataToPlot = filteredNarratives.filter(d => d.monitoring_group === selectedTab.value);
-  }
-
-
-
-  const aggregatedTop5 = Object.entries(
-    dataToPlot.reduce((acc, { narrative_text, n }) => {
-      acc[narrative_text] = (acc[narrative_text] || 0) + n;
-      return acc;
-    }, {})
-  )
-  .sort(([, a], [, b]) => b - a)
-  .slice(0, 7);
-
-  aggregatedNarrativesChart = Plot.plot({
-    width: 700,
-    height: 400,
-    marginLeft: 150,
-    marks: [
-      Plot.barX(aggregatedTop5, {
-        x: ([, count]) => count,
-        y: ([text]) => text,
-        sort: { y: "x", reverse: true },
-        tip: true
-      }),
-      Plot.ruleX([0])
-    ],
-    x: { label: "Frequency" },
-    y: {
-      label: null,
-      tickFormat: d => {
-        const words = d.split(' ');
-        let wrapped = '';
-        let line = '';
-        for (const word of words) {
-          if ((line + word).length > 10) {
-            wrapped += line + '\n';
-            line = '';
-          }
-          line += word + ' ';
-        }
-        return wrapped + line.trim();
-      }
-    },
-    title: "ხუთი ყველაზე გავრცელებული ანტიდასავლური ნარატივი",
-  });
-
-  document.getElementById("aggregatedNarrativesChartDiv").innerHTML = "";
-  document.getElementById("aggregatedNarrativesChartDiv").appendChild(aggregatedNarrativesChart);
+  let agg=Object.entries(data.reduce((a,{narrative_text,n})=>(a[narrative_text]=(a[narrative_text]||0)+n,a),{})).sort(([,a],[,b])=>b-a).slice(0,7);
+  document.getElementById(id).innerHTML='';
+  document.getElementById(id).appendChild(Plot.plot({marks:[Plot.barX(agg,{x:d=>d[1],y:d=>d[0],sort:{y:"x",reverse:true},tip:true}),Plot.ruleX([0])],width:700,height:400,marginLeft:150,x:{label:"Frequency"},y:{label:null,tickFormat:d=>d.match(/.{1,10}(\s|$)/g).join('\n')}}));
 }
 
-// Add tabs for filtering by monitoring group
-const tabs = [
-  { label: "ყველა", value: "all" },
-  { label: "აზერბაიჯანულენოვანი სეგმენტი", value: "აზერბაიჯანულენოვანი სეგმენტი" },
-  { label: "აჭარის სეგმენტი", value: "აჭარის სეგმენტი" },
-  { label: "სომხურენოვანი სეგმენტი", value: "სომხურენოვანი სეგმენტი" },
-  { label: "სხვა", value: "სხვა" }
-];
+function updateCharts(){Object.entries(tabMappings).forEach(([g,id])=>renderChart(g,id));}
+tabs.forEach(t=>t.addEventListener('change',()=>{panels.forEach(p=>p.style.display='none');document.getElementById(`${t.id}-panel`).style.display='block';updateCharts();}));
+[startDate,endDate].forEach(e=>e.addEventListener('input',updateCharts));
+Promise.all([dailyPosts,narratives]).then(updateCharts);
 
-const tabsContainer = document.createElement("div");
-tabsContainer.className = "tabs";
-tabs.forEach(tab => {
-  const tabElement = document.createElement("button");
-  tabElement.className = "tab";
-  tabElement.dataset.tab = tab.value;
-  tabElement.textContent = tab.label;
-  if (tab.value === "all") tabElement.classList.add("active");
-  tabElement.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    tabElement.classList.add("active");
-    updateChart();
-  });
-  tabsContainer.appendChild(tabElement);
-});
 
-document.getElementById("aggregatedNarrativesChartDiv").before(tabsContainer);
 
-// Wait for data to load and then display the initial chart
-Promise.all([dailyPosts, narratives]).then(() => {
-  updateChart();
-});
+```
+
+```js
+display(tabGroups)
 
 ```
 
@@ -203,10 +131,29 @@ Promise.all([dailyPosts, narratives]).then(() => {
     </figure>
   </div>
   <div class="card grid-colspan-2">
-    <h2></h2>
-    <div id="aggregatedNarrativesChartDiv">${aggregatedNarrativesChart}</div>
-    ${startDate}
-    ${endDate}
+    <h2>ხუთი ყველაზე გავრცელებული ანტიდასავლური ნარატივი</h2>
+        <div class="tabs">
+          <input type="radio" name="tabset" id="tab-full-data" value="All" checked>
+          <label for="tab-full-data">სრული მონაცემები</label>
+          <input type="radio" name="tabset" id="tab2" value="აზერბაიჯანულენოვანი სეგმენტი">
+          <label for="tab2">აზერბაიჯანულენოვანი სეგმენტი</label>
+          <input type="radio" name="tabset" id="tab3" value="აჭარის სეგმენტი">
+          <label for="tab3">აჭარის სეგმენტი</label>
+          <input type="radio" name="tabset" id="tab4" value="სომხურენოვანი სეგმენტი">
+          <label for="tab4">სომხურენოვანი სეგმენტი</label>
+          <input type="radio" name="tabset" id="tab5" value="სხვა">
+          <label for="tab5">სხვა</label>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel" id="tab-full-data-panel" style="display:block;"><div id="chart-all"></div></div>
+          <div class="tab-panel" id="tab2-panel" style="display:none;"><div id="chart-az"></div></div>
+          <div class="tab-panel" id="tab3-panel" style="display:none;"><div id="chart-adjara"></div></div>
+          <div class="tab-panel" id="tab4-panel" style="display:none;"><div id="chart-arm"></div></div>
+          <div class="tab-panel" id="tab5-panel" style="display:none;"><div id="chart-other"></div></div>
+        </div>
+      ${startDate}
+      ${endDate}
+    </div>
   </div>
   <div class="card grid-colspan-2">
     <h2></h2>
