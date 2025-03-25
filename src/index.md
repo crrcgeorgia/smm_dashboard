@@ -10,46 +10,28 @@ style: custom-style.css
 import * as Inputs from "npm:@observablehq/inputs";
 
 
-// Load the custom font
-
+// Load custom fonts
 FileAttachment("fonts/bpg-arial-caps-webfont.ttf").url().then(url => {
   const style = document.createElement('style');
   style.textContent = `
-  @font-face {
-    font-family: 'BPG Arial Caps';
-    src: url(${url});
-  }
-  h2 {
-    font-family: 'BPG Arial Caps', sans-serif;
-  }`;
+    @font-face {
+      font-family: 'BPG Arial Caps';
+      src: url(${url});
+    }
+    h2 { font-family: 'BPG Arial Caps', sans-serif; }
+  `;
   document.head.appendChild(style);
 });
-
 
 FileAttachment("fonts/bpg-arial-webfont.ttf").url().then(url => {
   const style = document.createElement('style');
   style.textContent = `
-  @font-face {
-    font-family: 'BPG Arial';
-    src: url(${url});
-  }
-  body {
-    font-family: 'BPG Arial', sans-serif;
-  }
-  
-  label {
-    font-family: 'BPG Arial', sans-serif;
-    font-size: 10px;
-  }
-  span {
-    font-family: 'BPG Arial', sans-serif;
-  }
-
-  p {
-    font-family: 'BPG Arial', sans-serif;
-    font-size: 10px;
-    font-style: italic
-  }
+    @font-face {
+      font-family: 'BPG Arial';
+      src: url(${url});
+    }
+    body, label, span { font-family: 'BPG Arial', sans-serif; }
+    p { font-family: 'BPG Arial', sans-serif; font-size: 10px; font-style: italic}
   `;
   document.head.appendChild(style);
 });
@@ -58,7 +40,6 @@ FileAttachment("fonts/bpg-arial-webfont.ttf").url().then(url => {
 
 ```js
 // Load data
-
 
 const dailyPosts = FileAttachment("data/daily_posts_by_group.csv").csv({ typed: true }).then(rows => 
   rows.map(d => ({ 
@@ -141,16 +122,22 @@ const endDate = Inputs.date({ value: new Date(maxDate), label: "აარჩი�
 
 const startDate = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
 
+const endDateActors = Inputs.date({ value: new Date(maxDate), label: "აარჩიეთ საბოლოო თარიღი" });
+
+const startDateActors = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
+
 const tabs = document.querySelectorAll('.tabs input[type="radio"]');
+
+const tabs_actors = document.querySelectorAll('.tabs-actors input[type="radio"]');
+
 const panels = document.querySelectorAll('.tab-panels .tab-panel');
 
-const tabMappings = {
-  "All": "chart-all",
-  "აზერბაიჯანულენოვანი სეგმენტი": "chart-az",
-  "აჭარის სეგმენტი": "chart-adjara",
-  "სომხურენოვანი სეგმენტი": "chart-arm",
-  "სხვა": "chart-other"
-};
+const panels_actors = document.querySelectorAll('.tab-panels-actors .tab-panel');
+
+const narrativeTabMappings = {"All":"chart-all","აზერბაიჯანულენოვანი სეგმენტი":"chart-az","აჭარის სეგმენტი":"chart-adjara","სომხურენოვანი სეგმენტი":"chart-arm","სხვა":"chart-other"};
+
+const actorsTabMappings = {"All":"chart-all-actors","აზერბაიჯანულენოვანი სეგმენტი":"chart-az-actors","აჭარის სეგმენტი":"chart-adjara-actors","სომხურენოვანი სეგმენტი":"chart-arm-actors","სხვა":"chart-other-actors"};
+
 
 function renderChart(group,id){
   let data=narratives.filter(d=>(group==='All'||d.monitoring_group===group)&&d.P_Date>=startDate.value&&d.P_Date<=endDate.value);
@@ -191,19 +178,91 @@ function renderChart(group,id){
   ));
 }
 
-function updateCharts(){Object.entries(tabMappings).forEach(([g,id])=>renderChart(g,id));}
+function renderChartActors(group, id) {
+  let data_actors = actors.filter(d =>
+    (group === 'All' || d.monitoring_group === group) &&
+    d.P_Date >= startDateActors.value && d.P_Date <= endDateActors.value
+  );
+
+  if (data_actors.length === 0) {
+    document.getElementById(id).innerHTML =
+      '<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
+    return;
+  }
+
+  let agg_actors = Object.entries(
+    data_actors.reduce((a, { actor_text, tone, n }) => {
+      const key = `${actor_text}||${tone}`;
+      a[key] = (a[key] || 0) + n;
+      return a;
+    }, {})
+  ).map(([key, n]) => {
+    const [actor_text, tone] = key.split("||");
+    return { actor_text, tone, n };
+  });
+
+  let totals = agg_actors.reduce((a, { actor_text, n }) => {
+    a[actor_text] = (a[actor_text] || 0) + n;
+    return a;
+  }, {});
+
+  agg_actors = agg_actors
+    .filter(({ actor_text }) => totals[actor_text] > 0)
+    .sort((a, b) => totals[b.actor_text] - totals[a.actor_text])
+    .slice(0, 7);
+
+  document.getElementById(id).innerHTML = '';
+  document.getElementById(id).appendChild(Plot.plot({
+    style: { fontFamily: "BPG Arial" },
+    color: {
+      domain: ["დადებითი", "ნეიტრალური", "უარყოფითი", null],
+      range: ["#66c2a5", "#fc8d62", "#8da0cb", "#e5c494"],
+      legend: true
+    },
+    marks: [
+      Plot.barX(agg_actors, {
+        x: "n",
+        y: "actor_text",
+        fill: "tone",
+        tip: true
+      }),
+      Plot.ruleX([0])
+    ],
+    width: 700,
+    height: 400,
+    marginLeft: 250,
+      y:{
+      label: null,
+      tickFormat: d => d.replace(/(.{10}\s)/g, '$1\n')
+    },
+    x: { label: "რ-ნობა" }
+  }));
+}
+
+
+function updateCharts(){Object.entries(narrativeTabMappings).forEach(([g,id])=>renderChart(g,id));}
+
 tabs.forEach(t=>t.addEventListener('change',()=>{panels.forEach(p=>p.style.display='none');document.getElementById(`${t.id}-panel`).style.display='block';updateCharts();}));
 
 [startDate,endDate].forEach(e=>e.addEventListener('input',updateCharts));
 
-Promise.all([dailyPosts,narratives]).then(updateCharts);
+function updateChartsActors(){Object.entries(actorsTabMappings).forEach(([g,id])=>renderChartActors(g,id));}
 
+tabs_actors.forEach(t => t.addEventListener('change', () => {
+  panels_actors.forEach(p => p.style.display = 'none');
+  document.getElementById(`${t.id}-panel`).style.display = 'block';
+  updateChartsActors();
+}));
+
+[startDateActors, endDateActors].forEach(e => e.addEventListener('input', updateChartsActors));
+
+Promise.all([dailyPosts,narratives,actors]).then(()=>{updateCharts(); updateChartsActors();});
 
 
 ```
 
 <div class="grid grid-cols-4">
-
+  
   <div class="card grid-colspan-2 grid-rowspan-1">
     <h2>რელევანტური პოსტების რაოდენობა თარიღის მიხედვით</h2>
     <figure style="max-width: none;">
@@ -216,17 +275,17 @@ Promise.all([dailyPosts,narratives]).then(updateCharts);
   </div>
 
   <div class="card grid-colspan-2">
-    <h2>ხუთი ყველაზე გავრცელებული ანტიდასავლური ნარატივი</h2>
+    <h2>შვიდი ყველაზე გავრცელებული ანტიდასავლური ნარატივი</h2>
         <div class="tabs">
-          <input type="radio" name="tabset" id="tab-full-data" value="All" checked>
+          <input type="radio" name="tabset-narratives" id="tab-full-data" value="All" checked>
           <label for="tab-full-data">სრული მონაცემები</label>
-          <input type="radio" name="tabset" id="tab2" value="აზერბაიჯანულენოვანი სეგმენტი">
+          <input type="radio" name="tabset-narratives" id="tab2" value="აზერბაიჯანულენოვანი სეგმენტი">
           <label for="tab2">აზერბაიჯანულენოვანი სეგმენტი</label>
-          <input type="radio" name="tabset" id="tab3" value="აჭარის სეგმენტი">
+          <input type="radio" name="tabset-narratives" id="tab3" value="აჭარის სეგმენტი">
           <label for="tab3">აჭარის სეგმენტი</label>
-          <input type="radio" name="tabset" id="tab4" value="სომხურენოვანი სეგმენტი">
+          <input type="radio" name="tabset-narratives" id="tab4" value="სომხურენოვანი სეგმენტი">
           <label for="tab4">სომხურენოვანი სეგმენტი</label>
-          <input type="radio" name="tabset" id="tab5" value="სხვა">
+          <input type="radio" name="tabset-narratives" id="tab5" value="სხვა">
           <label for="tab5">სხვა</label>
         </div>
         <div class="tab-panels">
@@ -238,6 +297,31 @@ Promise.all([dailyPosts,narratives]).then(updateCharts);
         </div>
       ${startDate}
       ${endDate}
+    </div>
+  </div>
+  <div class="card grid-colspan-2">
+    <h2>შვიდი ყველაზე ხშირად ნახსენები აქტორი</h2>
+        <div class="tabs-actors">
+          <input type="radio" name="tabset-actors" id="tab-full-data-actors" value="All" checked>
+          <label for="tab-full-data-actors">სრული მონაცემები</label>
+          <input type="radio" name="tabset-actors" id="tab2-actors" value="აზერბაიჯანულენოვანი სეგმენტი">
+          <label for="tab2-actors">აზერბაიჯანულენოვანი სეგმენტი</label>
+          <input type="radio" name="tabset-actors" id="tab3-actors" value="აჭარის სეგმენტი">
+          <label for="tab3-actors">აჭარის სეგმენტი</label>
+          <input type="radio" name="tabset-actors" id="tab4-actors" value="სომხურენოვანი სეგმენტი">
+          <label for="tab4-actors">სომხურენოვანი სეგმენტი</label>
+          <input type="radio" name="tabset-actors" id="tab5-actors" value="სხვა">
+          <label for="tab5-actors">სხვა</label>
+        </div>
+        <div class="tab-panels-actors">
+          <div class="tab-panel" id="tab-full-data-actors-panel" style="display:block;"><div id="chart-all-actors"></div></div>
+          <div class="tab-panel" id="tab2-actors-panel" style="display:none;"><div id="chart-az-actors"></div></div>
+          <div class="tab-panel" id="tab3-actors-panel" style="display:none;"><div id="chart-adjara-actors"></div></div>
+          <div class="tab-panel" id="tab4-actors-panel" style="display:none;"><div id="chart-arm-actors"></div></div>
+          <div class="tab-panel" id="tab5-actors-panel" style="display:none;"><div id="chart-other-actors"></div></div>
+        </div>
+      ${startDateActors}
+      ${endDateActors}
     </div>
   </div>
 </div>

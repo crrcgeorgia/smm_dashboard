@@ -40,13 +40,13 @@ bind_rows(
     )
   ) |> 
   filter(!is.na(actor_id)) |> 
-  group_by(actor_id, monitoring_group, tone) |> 
+  group_by(actor_id, monitoring_group, tone, P_Date) |> 
   count() |>
   left_join(
     actors_src, by = "actor_id"
   ) |> 
   select(
-    actor_id, actor_text, monitoring_group, tone, n
-  ) -> actors_by_tone
+    actor_id, actor_text, monitoring_group, tone, P_Date, n
+  )  -> actors_by_tone
 
 cat(format_csv(actors_by_tone))
