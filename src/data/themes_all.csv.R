@@ -1,14 +1,10 @@
 library(tidyverse)
 library(readxl)
 
-
 init_data <- read_excel("src/data/dashboard_data.xlsx")
 
 
-narratives_src <- read_excel("src/data/dashboard_data.xlsx", col_names = F, sheet = "ნარატივები") |> 
-  set_names(
-    c("narrative_id", "narrative_text")
-  )
+narratives_src <- read_excel("src/data/dashboard_data.xlsx", sheet = "თემა")
 
 # რელევანტური პოსტების სიხშირე
 
@@ -33,13 +29,20 @@ init_data |>
       T ~ "ქართულენოვანი სეგმენტი (აჭარის გარდა)"
     )
   ) |>
-  group_by(
-    P_Date, monitoring_group
-  ) |>  count() |> 
-  mutate(
-    P_Date = as.Date(P_Date),
-    id = row_number()
-  ) -> daily_posts_by_group
-  
+  select(
+    Narat1_topic, Narat2_topic, Narat3_topic
+  ) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable_id",
+    values_to = "topic_id"
+  ) |> 
+left_join(
+    narratives_src, by = "topic_id"
+) |>
+count(topic_id, topic_text) |>
+filter(
+    !is.na(topic_id)
+) -> discussed_topics
 
-cat(format_csv(daily_posts_by_group))
+cat(format_csv(discussed_topics))

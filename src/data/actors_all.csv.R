@@ -1,12 +1,9 @@
 library(tidyverse)
 library(readxl)
 
-init_data <- read_excel("src/data/Test file for dashboard.xlsx")
+init_data <- read_excel("src/data/dashboard_data.xlsx")
 
-actors_src <- read_excel("src/data/SIDA FB Codebook_7Feb2025.xlsx", col_names = F, sheet = "აქტორები") |> 
-  set_names(
-    c("actor_id", "actor_text", "note")
-  )
+actors_src <- read_excel("src/data/dashboard_data.xlsx", sheet = "აქტორები") 
 
 tbl_names <- names(init_data)
 
@@ -17,8 +14,11 @@ init_data |>
   set_names(tbl_names) |> 
   mutate(
     monitoring_group = case_when(
+      PG_name %in% c("ახალი ამბები განსჯისთვის", "Javakhk") ~ "სომხურენოვანი სეგმენტი",
+      PG_name %in% c("Aktual.ge", "24News.ge") ~ "აზერბაიჯანულენოვანი სეგმენტი",
+      PG_name %in% c("ბიძინა ივანიშვილის მხარდამჭერი ჯგუფი აჭარაში", "აჭარა გვერდი") ~ "აჭარის სეგმენტი",
       PG_name %in% c("ახალი ამბები", "აჭარა გვერდი") ~ "აჭარის სეგმენტი",
-      TRUE ~ "სხვა"
+      TRUE ~ "ქართულენოვანი სეგმენტი (აჭარის გარდა)"
     ),
     across(
       starts_with("Actor"),

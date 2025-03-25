@@ -64,6 +64,22 @@ const actors = FileAttachment("data/actors_all.csv").csv({ typed: true }).then(r
     n: +d.n  // ensure numeric type
   }))
 );
+
+const main_events = FileAttachment("data/events_all.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    date: new Date(d.date)
+  }))
+);
+
+const main_themes = FileAttachment("data/themes_all.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    // P_Date: new Date(d.P_Date),
+    n: +d.n  // ensure numeric type
+  }))
+);
+
 ```
 
 
@@ -82,30 +98,45 @@ const localeKA = d3.timeFormatLocale({
 });
 
 // Define chart for daily posts by group
-const dailyPostsChart = Plot.plot({
-  style: {fontFamily: "BPG Arial"},
-  color: {
-    domain: ["აზერბაიჯანულენოვანი სეგმენტი", "აჭარის სეგმენტი", "სომხურენოვანი სეგმენტი", "სხვა"],
-    range: ["#66c2a5", "#fc8d62", "#8da0cb", "#e5c494"],
-    legend: true
-  },
-  marks: [
-    Plot.barY(dailyPosts, {
-      x: "P_Date",
-      y: "n",
-      fill: "monitoring_group",
-      tip: true
-    })
-  ],
-  x: {
-    type: "band",
-    tickFormat: localeKA.format("%d %b"),
-    tickRotate: -90,
-    label: "თარიღი: "
-  },
-  y: {
-    label: "პოსტების რ-ნობა: "
-  }
+const dailyPostsChart = Promise.all([dailyPosts, main_events]).then(([dailyData, events]) => {
+    return Plot.plot({
+      style: {fontFamily: "BPG Arial"},
+      color: {
+        domain: ["აზერბაიჯანულენოვანი სეგმენტი", "აჭარის სეგმენტი", "სომხურენოვანი სეგმენტი", "ქართულენოვანი სეგმენტი (აჭარის გარდა)"],
+        range: ["#66c2a5", "#fc8d62", "#8da0cb", "#e5c494"],
+        legend: true
+      },
+      marks: [
+        Plot.barY(dailyPosts, {
+          x: "P_Date",
+          y: "n",
+          fill: "monitoring_group",
+          tip: true
+        }),
+        Plot.text(events, {
+          // substract one day from the date to display the text on the left side of the event
+          // x: d => new Date(d.date.setDate(d.date.getDate() - 0)),
+          x: "date",
+          y: () => Math.max(...dailyData.map(d => d.n)) * 1.05,
+          text: "description",
+          dy: -50,
+          // dx: -10,
+          rotate: -90,
+          fill: "red",
+          fontSize: 12,
+          textAnchor: "middle"
+        })
+      ],
+      x: {
+        type: "band",
+        tickFormat: localeKA.format("%d %b"),
+        tickRotate: -90,
+        label: "თარიღი: "
+      },
+      y: {
+        label: "პოსტების რ-ნობა: "
+      }
+  })
 });
 
 ```
@@ -134,9 +165,9 @@ const panels = document.querySelectorAll('.tab-panels .tab-panel');
 
 const panels_actors = document.querySelectorAll('.tab-panels-actors .tab-panel');
 
-const narrativeTabMappings = {"All":"chart-all","აზერბაიჯანულენოვანი სეგმენტი":"chart-az","აჭარის სეგმენტი":"chart-adjara","სომხურენოვანი სეგმენტი":"chart-arm","სხვა":"chart-other"};
+const narrativeTabMappings = {"All":"chart-all","აზერბაიჯანულენოვანი სეგმენტი":"chart-az","აჭარის სეგმენტი":"chart-adjara","სომხურენოვანი სეგმენტი":"chart-arm","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other"};
 
-const actorsTabMappings = {"All":"chart-all-actors","აზერბაიჯანულენოვანი სეგმენტი":"chart-az-actors","აჭარის სეგმენტი":"chart-adjara-actors","სომხურენოვანი სეგმენტი":"chart-arm-actors","სხვა":"chart-other-actors"};
+const actorsTabMappings = {"All":"chart-all-actors","აზერბაიჯანულენოვანი სეგმენტი":"chart-az-actors","აჭარის სეგმენტი":"chart-adjara-actors","სომხურენოვანი სეგმენტი":"chart-arm-actors","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other-actors"};
 
 
 function renderChart(group,id){
@@ -215,8 +246,8 @@ function renderChartActors(group, id) {
   document.getElementById(id).appendChild(Plot.plot({
     style: { fontFamily: "BPG Arial" },
     color: {
-      domain: ["დადებითი", "ნეიტრალური", "უარყოფითი", null],
-      range: ["#66c2a5", "#fc8d62", "#8da0cb", "#e5c494"],
+      domain: ["დადებითი", "ნეიტრალური", "უარყოფითი"],
+      range: ["#66c2a5", "#fc8d62", "#8da0cb"],
       legend: true
     },
     marks: [
@@ -258,6 +289,26 @@ tabs_actors.forEach(t => t.addEventListener('change', () => {
 
 Promise.all([dailyPosts,narratives,actors]).then(()=>{updateCharts(); updateChartsActors();});
 
+// build a word cloud from main_themes, size sould be n, color should be theme
+
+const themes = main_themes.map(d => ({ text: d.theme, size: d.n, color: d.theme }));
+
+const themeCloud = Plot.plot({
+  marks: [
+    Plot.barX(themes, {
+      x: "theme",
+      y: "n",
+      fill: d => d.color
+    })
+  ],
+  width: 700,
+  height: 400,
+  marginTop: 50,
+  marginBottom: 50,
+  marginLeft: 50,
+  marginRight: 50
+});
+
 
 ```
 
@@ -285,8 +336,8 @@ Promise.all([dailyPosts,narratives,actors]).then(()=>{updateCharts(); updateChar
           <label for="tab3">აჭარის სეგმენტი</label>
           <input type="radio" name="tabset-narratives" id="tab4" value="სომხურენოვანი სეგმენტი">
           <label for="tab4">სომხურენოვანი სეგმენტი</label>
-          <input type="radio" name="tabset-narratives" id="tab5" value="სხვა">
-          <label for="tab5">სხვა</label>
+          <input type="radio" name="tabset-narratives" id="tab5" value="ქართულენოვანი სეგმენტი (აჭარის გარდა)">
+          <label for="tab5">ქართულენოვანი სეგმენტი (აჭარის გარდა)</label>
         </div>
         <div class="tab-panels">
           <div class="tab-panel" id="tab-full-data-panel" style="display:block;"><div id="chart-all"></div></div>
@@ -310,8 +361,8 @@ Promise.all([dailyPosts,narratives,actors]).then(()=>{updateCharts(); updateChar
           <label for="tab3-actors">აჭარის სეგმენტი</label>
           <input type="radio" name="tabset-actors" id="tab4-actors" value="სომხურენოვანი სეგმენტი">
           <label for="tab4-actors">სომხურენოვანი სეგმენტი</label>
-          <input type="radio" name="tabset-actors" id="tab5-actors" value="სხვა">
-          <label for="tab5-actors">სხვა</label>
+          <input type="radio" name="tabset-actors" id="tab5-actors" value="ქართულენოვანი სეგმენტი (აჭარის გარდა)">
+          <label for="tab5-actors">ქართულენოვანი სეგმენტი (აჭარის გარდა)</label>
         </div>
         <div class="tab-panels-actors">
           <div class="tab-panel" id="tab-full-data-actors-panel" style="display:block;"><div id="chart-all-actors"></div></div>

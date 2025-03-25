@@ -2,14 +2,10 @@ library(tidyverse)
 library(readxl)
 
 
+init_data <- read_excel("src/data/dashboard_data.xlsx")
 
-init_data <- read_excel("src/data/Test file for dashboard.xlsx")
 
-
-narratives_src <- read_excel("src/data/SIDA FB Codebook_7Feb2025.xlsx", col_names = F, sheet = "ნარატივები") |> 
-  set_names(
-    c("narrative_id", "narrative_text", "note")
-  )
+narratives_src <- read_excel("src/data/dashboard_data.xlsx", sheet = "ნარატივები") 
 
 # რელევანტური პოსტების სიხშირე
 
@@ -31,7 +27,7 @@ init_data |>
       PG_name %in% c("ახალი ამბები განსჯისთვის", "Javakhk") ~ "სომხურენოვანი სეგმენტი",
       PG_name %in% c("Aktual.ge", "24News.ge") ~ "აზერბაიჯანულენოვანი სეგმენტი",
       PG_name %in% c("ბიძინა ივანიშვილის მხარდამჭერი ჯგუფი აჭარაში", "აჭარა გვერდი") ~ "აჭარის სეგმენტი",
-      T ~ "სხვა"
+      T ~ "ქართულენოვანი სეგმენტი (აჭარის გარდა)"
     )
   ) |>
   group_by(
@@ -51,7 +47,7 @@ init_data |>
       PG_name %in% c("ახალი ამბები განსჯისთვის", "Javakhk") ~ "სომხურენოვანი სეგმენტი",
       PG_name %in% c("Aktual.ge", "24News.ge") ~ "აზერბაიჯანულენოვანი სეგმენტი",
       PG_name %in% c("ბიძინა ივანიშვილის მხარდამჭერი ჯგუფი აჭარაში", "აჭარა გვერდი") ~ "აჭარის სეგმენტი",
-      T ~ "სხვა"
+      T ~ "ქართულენოვანი სეგმენტი (აჭარის გარდა)"
     )
   ) |> 
   select(
