@@ -605,7 +605,7 @@ const key = Swatches(themeCloud.scales.color)
   </div>
 
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2>შვიდი ყველაზე ხშირად ნახსენები აქტორი</h2>
+    <h2>შვიდი ყველაზე გავრცელებული თემა (ფილტრი ჯერ არ მუშაობს)</h2>
     <div class="tabs-topics">
       <input type="radio" name="tabset-topics" id="tab-full-data-topics" value="All" checked>
       <label for="tab-full-data-topics">სრული მონაცემები</label>
@@ -625,8 +625,8 @@ const key = Swatches(themeCloud.scales.color)
       <div class="tab-panel" id="tab4-topics-panel" style="display:none;"><div id="chart-arm-topics"></div></div>
       <div class="tab-panel" id="tab5-topics-panel" style="display:none;"><div id="chart-other-topics"></div></div>
     </div>
-    ${key}
     ${themeCloud}
+    ${key}
   </div>
 </div>
 
