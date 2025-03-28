@@ -8,7 +8,8 @@ style: custom-style.css
 ```js
 // Import required libraries
 import * as Inputs from "npm:@observablehq/inputs";
-
+// import Swatches from "npm:@d3/color-legend";
+// import {Treemap} from "/js/treemap.js"
 
 // Load custom fonts
 FileAttachment("fonts/bpg-arial-caps-webfont.ttf").url().then(url => {
@@ -79,6 +80,7 @@ const main_themes = FileAttachment("data/themes_all.csv").csv({ typed: true }).t
     n: +d.n  // ensure numeric type
   }))
 );
+
 
 ```
 
@@ -291,24 +293,248 @@ Promise.all([dailyPosts,narratives,actors]).then(()=>{updateCharts(); updateChar
 
 // build a word cloud from main_themes, size sould be n, color should be theme
 
-const themes = main_themes.map(d => ({ text: d.theme, size: d.n, color: d.theme }));
+// themeCloud = Treemap(main_themes) {}
 
-const themeCloud = Plot.plot({
-  marks: [
-    Plot.barX(themes, {
-      x: "theme",
-      y: "n",
-      fill: d => d.color
-    })
-  ],
-  width: 700,
-  height: 400,
-  marginTop: 50,
-  marginBottom: 50,
-  marginLeft: 50,
-  marginRight: 50
-});
+```
 
+```js
+
+// Copyright 2021-2023 Observable, Inc.
+// Released under the ISC license.
+// https://observablehq.com/@d3/treemap
+function Treemap(data, { // data is either tabular (array of objects) or hierarchy (nested objects)
+    path, // as an alternative to id and parentId, returns an array identifier, imputing internal nodes
+    id = Array.isArray(data) ? d => d.id : null, // if tabular data, given a d in data, returns a unique identifier (string)
+    parentId = Array.isArray(data) ? d => d.parentId : null, // if tabular data, given a node d, returns its parent’s identifier
+    children, // if hierarchical data, given a d in data, returns its children
+    value, // given a node d, returns a quantitative value (for area encoding; null for count)
+    sort = (a, b) => d3.descending(a.value, b.value), // how to sort nodes prior to layout
+    label, // given a leaf node d, returns the name to display on the rectangle
+    group, // given a leaf node d, returns a categorical value (for color encoding)
+    title, // given a leaf node d, returns its hover text
+    link, // given a leaf node d, its link (if any)
+    linkTarget = "_blank", // the target attribute for links (if any)
+    tile = d3.treemapBinary, // treemap strategy
+    width = 640, // outer width, in pixels
+    height = 400, // outer height, in pixels
+    margin = 0, // shorthand for margins
+    marginTop = margin, // top margin, in pixels
+    marginRight = margin, // right margin, in pixels
+    marginBottom = margin, // bottom margin, in pixels
+    marginLeft = margin, // left margin, in pixels
+    padding = 1, // shorthand for inner and outer padding
+    paddingInner = padding, // to separate a node from its adjacent siblings
+    paddingOuter = padding, // shorthand for top, right, bottom, and left padding
+    paddingTop = paddingOuter, // to separate a node’s top edge from its children
+    paddingRight = paddingOuter, // to separate a node’s right edge from its children
+    paddingBottom = paddingOuter, // to separate a node’s bottom edge from its children
+    paddingLeft = paddingOuter, // to separate a node’s left edge from its children
+    round = true, // whether to round to exact pixels
+    colors = d3.schemeTableau10, // array of colors
+    zDomain, // array of values for the color scale
+    fill = "#ccc", // fill for node rects (if no group color encoding)
+    fillOpacity = group == null ? null : 0.6, // fill opacity for node rects
+    stroke, // stroke for node rects
+    strokeWidth, // stroke width for node rects
+    strokeOpacity, // stroke opacity for node rects
+    strokeLinejoin, // stroke line join for node rects
+  } = {}) {
+  
+    // If id and parentId options are specified, or the path option, use d3.stratify
+    // to convert tabular data to a hierarchy; otherwise we assume that the data is
+    // specified as an object {children} with nested objects (a.k.a. the “flare.json”
+    // format), and use d3.hierarchy.
+  
+    // We take special care of any node that has both a value and children, see
+    // https://observablehq.com/@d3/treemap-parent-with-value.
+    const stratify = data => (d3.stratify().path(path)(data)).each(node => {
+      if (node.children?.length && node.data != null) {
+        const child = new d3.Node(node.data);
+        node.data = null;
+        child.depth = node.depth + 1;
+        child.height = 0;
+        child.parent = node;
+        child.id = node.id + "/";
+        node.children.unshift(child);
+      }
+    });
+    const root = path != null ? stratify(data)
+        : id != null || parentId != null ? d3.stratify().id(id).parentId(parentId)(data)
+        : d3.hierarchy(data, children);
+  
+    // Compute the values of internal nodes by aggregating from the leaves.
+    value == null ? root.count() : root.sum(d => Math.max(0, d ? value(d) : null));
+  
+    // Prior to sorting, if a group channel is specified, construct an ordinal color scale.
+    const leaves = root.leaves();
+    const G = group == null ? null : leaves.map(d => group(d.data, d));
+    if (zDomain === undefined) zDomain = G;
+    zDomain = new d3.InternSet(zDomain);
+    const color = group == null ? null : d3.scaleOrdinal(zDomain, colors);
+  
+    // Compute labels and titles.
+    const L = label == null ? null : leaves.map(d => label(d.data, d));
+    const T = title === undefined ? L : title == null ? null : leaves.map(d => title(d.data, d));
+  
+    // Sort the leaves (typically by descending value for a pleasing layout).
+    if (sort != null) root.sort(sort);
+  
+    // Compute the treemap layout.
+    d3.treemap()
+        .tile(tile)
+        .size([width - marginLeft - marginRight, height - marginTop - marginBottom])
+        .paddingInner(paddingInner)
+        .paddingTop(paddingTop)
+        .paddingRight(paddingRight)
+        .paddingBottom(paddingBottom)
+        .paddingLeft(paddingLeft)
+        .round(round)
+      (root);
+  
+    const svg = d3.create("svg")
+        .attr("viewBox", [-marginLeft, -marginTop, width, height])
+        .attr("width", width)
+        .attr("height", height)
+        .attr("style", "max-width: 100%; height: auto; height: intrinsic;")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", 10);
+  
+    const node = svg.selectAll("a")
+      .data(leaves)
+      .join("a")
+        .attr("xlink:href", link == null ? null : (d, i) => link(d.data, d))
+        .attr("target", link == null ? null : linkTarget)
+        .attr("transform", d => `translate(${d.x0},${d.y0})`);
+  
+    node.append("rect")
+        .attr("fill", color ? (d, i) => color(G[i]) : fill)
+        .attr("fill-opacity", fillOpacity)
+        .attr("stroke", stroke)
+        .attr("stroke-width", strokeWidth)
+        .attr("stroke-opacity", strokeOpacity)
+        .attr("stroke-linejoin", strokeLinejoin)
+        .attr("width", d => d.x1 - d.x0)
+        .attr("height", d => d.y1 - d.y0);
+  
+    if (T) {
+      node.append("title").text((d, i) => T[i]);
+    }
+  
+    if (L) {
+      // A unique identifier for clip paths (to avoid conflicts).
+      const uid = `O-${Math.random().toString(16).slice(2)}`;
+  
+      node.append("clipPath")
+         .attr("id", (d, i) => `${uid}-clip-${i}`)
+       .append("rect")
+         .attr("width", d => d.x1 - d.x0)
+         .attr("height", d => d.y1 - d.y0);
+  
+      node.append("text")
+          .attr("clip-path", (d, i) => `url(${new URL(`#${uid}-clip-${i}`, location)})`)
+        .selectAll("tspan")
+        .data((d, i) => `${L[i]}`.split(/\n/g))
+        .join("tspan")
+          .attr("x", 3)
+          .attr("y", (d, i, D) => `${(i === D.length - 1) * 0.3 + 1.1 + i * 0.9}em`)
+          .attr("fill-opacity", (d, i, D) => i === D.length - 1 ? 0.7 : null)
+          .text(d => d);   
+    }
+  
+    return Object.assign(svg.node(), {scales: {color}});
+  }
+
+// Copyright 2021, Observable Inc.
+// Released under the ISC license.
+// https://observablehq.com/@d3/color-legend
+function Swatches(color, {
+  columns = null,
+  format,
+  unknown: formatUnknown,
+  swatchSize = 15,
+  swatchWidth = swatchSize,
+  swatchHeight = swatchSize,
+  marginLeft = 0
+} = {}) {
+  const id = `-swatches-${Math.random().toString(16).slice(2)}`;
+  const unknown = formatUnknown == null ? undefined : color.unknown();
+  const unknowns = unknown == null || unknown === d3.scaleImplicit ? [] : [unknown];
+  const domain = color.domain().concat(unknowns);
+  if (format === undefined) format = x => x === unknown ? formatUnknown : x;
+
+  function entity(character) {
+    return `&#${character.charCodeAt(0).toString()};`;
+  }
+
+  if (columns !== null) return htl.html`<div style="display: flex; align-items: center; margin-left: ${+marginLeft}px; min-height: 33px; font: 10px sans-serif;">
+  <style>
+
+.${id}-item {
+  break-inside: avoid;
+  display: flex;
+  align-items: center;
+  padding-bottom: 1px;
+}
+
+.${id}-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - ${+swatchWidth}px - 0.5em);
+}
+
+.${id}-swatch {
+  width: ${+swatchWidth}px;
+  height: ${+swatchHeight}px;
+  margin: 0 0.5em 0 0;
+}
+
+  </style>
+  <div style=${{width: "100%", columns}}>${domain.map(value => {
+    const label = `${format(value)}`;
+    return htl.html`<div class=${id}-item>
+      <div class=${id}-swatch style=${{background: color(value)}}></div>
+      <div class=${id}-label title=${label}>${label}</div>
+    </div>`;
+  })}
+  </div>
+</div>`;
+
+  return htl.html`<div style="display: flex; align-items: center; min-height: 33px; margin-left: ${+marginLeft}px; font: 10px sans-serif;">
+  <style>
+
+.${id} {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 1em;
+}
+
+.${id}::before {
+  content: "";
+  width: ${+swatchWidth}px;
+  height: ${+swatchHeight}px;
+  margin-right: 0.5em;
+  background: var(--color);
+}
+
+  </style>
+  <div>${domain.map(value => htl.html`<span class="${id}" style="--color: ${color(value)}">${format(value)}</span>`)}</div>`;
+}
+
+const themeCloud = Treemap(main_themes, {
+  path: d => d.topic_text, 
+  value: d => d.n, // size of each node (file); null for internal nodes (folders)
+  group: d => d.topic_text, // e.g., "animate" in "flare.animate.Easing"; for color
+  label: d => d.narrative_text, // text to show on node
+  // label: (d, n) => [...d.name.split(".").pop().split(/(?=[A-Z][a-z])/g), n.value.toLocaleString("en")].join("\n"),
+  // title: (d, n) => `${d.name}\n${n.value.toLocaleString("en")}`, // text to show on hover
+  // link: (d, n) => `https://github.com/prefuse/Flare/blob/master/flare/src${n.id}.as`,
+  // tile, // e.g., d3.treemapBinary; set by input above
+  width: 1152,
+  height: 1152
+})
+
+const key = Swatches(themeCloud.scales.color)
 
 ```
 
@@ -350,29 +576,58 @@ const themeCloud = Plot.plot({
       ${endDate}
     </div>
   </div>
-  <div class="card grid-colspan-2">
+</div>
+
+<div class="grid grid-cols-4">
+  <div class="card grid-colspan-2 grid-rowspan-1">
     <h2>შვიდი ყველაზე ხშირად ნახსენები აქტორი</h2>
-        <div class="tabs-actors">
-          <input type="radio" name="tabset-actors" id="tab-full-data-actors" value="All" checked>
-          <label for="tab-full-data-actors">სრული მონაცემები</label>
-          <input type="radio" name="tabset-actors" id="tab2-actors" value="აზერბაიჯანულენოვანი სეგმენტი">
-          <label for="tab2-actors">აზერბაიჯანულენოვანი სეგმენტი</label>
-          <input type="radio" name="tabset-actors" id="tab3-actors" value="აჭარის სეგმენტი">
-          <label for="tab3-actors">აჭარის სეგმენტი</label>
-          <input type="radio" name="tabset-actors" id="tab4-actors" value="სომხურენოვანი სეგმენტი">
-          <label for="tab4-actors">სომხურენოვანი სეგმენტი</label>
-          <input type="radio" name="tabset-actors" id="tab5-actors" value="ქართულენოვანი სეგმენტი (აჭარის გარდა)">
-          <label for="tab5-actors">ქართულენოვანი სეგმენტი (აჭარის გარდა)</label>
-        </div>
-        <div class="tab-panels-actors">
-          <div class="tab-panel" id="tab-full-data-actors-panel" style="display:block;"><div id="chart-all-actors"></div></div>
-          <div class="tab-panel" id="tab2-actors-panel" style="display:none;"><div id="chart-az-actors"></div></div>
-          <div class="tab-panel" id="tab3-actors-panel" style="display:none;"><div id="chart-adjara-actors"></div></div>
-          <div class="tab-panel" id="tab4-actors-panel" style="display:none;"><div id="chart-arm-actors"></div></div>
-          <div class="tab-panel" id="tab5-actors-panel" style="display:none;"><div id="chart-other-actors"></div></div>
-        </div>
-      ${startDateActors}
-      ${endDateActors}
+    <div class="tabs-actors">
+      <input type="radio" name="tabset-actors" id="tab-full-data-actors" value="All" checked>
+      <label for="tab-full-data-actors">სრული მონაცემები</label>
+      <input type="radio" name="tabset-actors" id="tab2-actors" value="აზერბაიჯანულენოვანი სეგმენტი">
+      <label for="tab2-actors">აზერბაიჯანულენოვანი სეგმენტი</label>
+      <input type="radio" name="tabset-actors" id="tab3-actors" value="აჭარის სეგმენტი">
+      <label for="tab3-actors">აჭარის სეგმენტი</label>
+      <input type="radio" name="tabset-actors" id="tab4-actors" value="სომხურენოვანი სეგმენტი">
+      <label for="tab4-actors">სომხურენოვანი სეგმენტი</label>
+      <input type="radio" name="tabset-actors" id="tab5-actors" value="ქართულენოვანი სეგმენტი (აჭარის გარდა)">
+      <label for="tab5-actors">ქართულენოვანი სეგმენტი (აჭარის გარდა)</label>
     </div>
+    <div class="tab-panels-actors">
+      <div class="tab-panel" id="tab-full-data-actors-panel" style="display:block;"><div id="chart-all-actors"></div></div>
+      <div class="tab-panel" id="tab2-actors-panel" style="display:none;"><div id="chart-az-actors"></div></div>
+      <div class="tab-panel" id="tab3-actors-panel" style="display:none;"><div id="chart-adjara-actors"></div></div>
+      <div class="tab-panel" id="tab4-actors-panel" style="display:none;"><div id="chart-arm-actors"></div></div>
+      <div class="tab-panel" id="tab5-actors-panel" style="display:none;"><div id="chart-other-actors"></div></div>
+    </div>
+    ${startDateActors}
+    ${endDateActors}
   </div>
+
+  <div class="card grid-colspan-2 grid-rowspan-1">
+    <h2>შვიდი ყველაზე ხშირად ნახსენები აქტორი</h2>
+    <div class="tabs-topics">
+      <input type="radio" name="tabset-topics" id="tab-full-data-topics" value="All" checked>
+      <label for="tab-full-data-topics">სრული მონაცემები</label>
+      <input type="radio" name="tabset-topics" id="tab2-topics" value="აზერბაიჯანულენოვანი სეგმენტი">
+      <label for="tab2-topics">აზერბაიჯანულენოვანი სეგმენტი</label>
+      <input type="radio" name="tabset-topics" id="tab3-topics" value="აჭარის სეგმენტი">
+      <label for="tab3-topics">აჭარის სეგმენტი</label>
+      <input type="radio" name="tabset-topics" id="tab4-topics" value="სომხურენოვანი სეგმენტი">
+      <label for="tab4-topics">სომხურენოვანი სეგმენტი</label>
+      <input type="radio" name="tabset-topics" id="tab5-topics" value="ქართულენოვანი სეგმენტი (აჭარის გარდა)">
+      <label for="tab5-topics">ქართულენოვანი სეგმენტი (აჭარის გარდა)</label>
+    </div>
+    <div class="tab-panels-topics">
+      <div class="tab-panel" id="tab-full-data-topics-panel" style="display:block;"><div id="chart-all-topics"></div></div>
+      <div class="tab-panel" id="tab2-topics-panel" style="display:none;"><div id="chart-az-topics"></div></div>
+      <div class="tab-panel" id="tab3-topics-panel" style="display:none;"><div id="chart-adjara-topics"></div></div>
+      <div class="tab-panel" id="tab4-topics-panel" style="display:none;"><div id="chart-arm-topics"></div></div>
+      <div class="tab-panel" id="tab5-topics-panel" style="display:none;"><div id="chart-other-topics"></div></div>
+    </div>
+    ${key}
+    ${themeCloud}
+  </div>
+</div>
+
 </div>
