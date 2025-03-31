@@ -142,7 +142,7 @@ init_data |>
     all_narratives_topics |> select(narrative, topic_text) |> distinct(narrative, .keep_all = T), by = c("narrative_id" = "narrative")
   ) |> 
   group_by(
-    narrative_text, narrative_id, topic_text
+    P_Date, monitoring_group, narrative_text, narrative_id, topic_text
   ) |> 
   summarize(
     n = sum(n)
@@ -160,4 +160,4 @@ narratives_all_with_topics |>
 narratives_all_with_topics |> 
   filter(topic_text %in% top_5_topics) -> narratives_filtered
 
-cat(format_csv(narratives_filtered))
+cat(format_csv(narratives_all_with_topics))

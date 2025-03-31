@@ -37,268 +37,6 @@ FileAttachment("fonts/bpg-arial-webfont.ttf").url().then(url => {
   document.head.appendChild(style);
 });
 
-```
-
-```js
-// Load data
-
-const dailyPosts = FileAttachment("data/daily_posts_by_group.csv").csv({ typed: true }).then(rows => 
-  rows.map(d => ({ 
-    ...d, 
-    P_Date: new Date(d.P_Date),
-    n: +d.n  // ensure numeric type
-  }))
-);
-
-const narratives = FileAttachment("data/narratives_all.csv").csv({ typed: true }).then(rows => 
-  rows.map(d => ({ 
-    ...d, 
-    P_Date: new Date(d.P_Date),
-    n: +d.n  // ensure numeric type
-  }))
-);
-
-const actors = FileAttachment("data/actors_all.csv").csv({ typed: true }).then(rows => 
-  rows.map(d => ({ 
-    ...d, 
-    P_Date: new Date(d.P_Date),
-    n: +d.n  // ensure numeric type
-  }))
-);
-
-const main_events = FileAttachment("data/events_all.csv").csv({ typed: true }).then(rows => 
-  rows.map(d => ({ 
-    ...d, 
-    date: new Date(d.date)
-  }))
-);
-
-const main_themes = FileAttachment("data/themes_all.csv").csv({ typed: true }).then(rows => 
-  rows.map(d => ({ 
-    ...d, 
-    // P_Date: new Date(d.P_Date),
-    n: +d.n  // ensure numeric type
-  }))
-);
-
-
-```
-
-
-
-```js
-// Define Georgian locale for date formatting
-const localeKA = d3.timeFormatLocale({
-  dateTime: "%A, %e %B %Y %X",
-  date: "%d/%m/%Y",
-  time: "%H:%M:%S",
-  periods: ["AM", "PM"],
-  days: ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"],
-  shortDays: ["კვ", "ორ", "სმ", "ოთ", "ხთ", "პრ", "შბ"],
-  months: ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"],
-  shortMonths: ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"]
-});
-
-// Define chart for daily posts by group
-const dailyPostsChart = Promise.all([dailyPosts, main_events]).then(([dailyData, events]) => {
-    return Plot.plot({
-      style: {fontFamily: "BPG Arial"},
-      color: {
-        domain: ["აზერბაიჯანულენოვანი სეგმენტი", "აჭარის სეგმენტი", "სომხურენოვანი სეგმენტი", "ქართულენოვანი სეგმენტი (აჭარის გარდა)"],
-        range: ["#66c2a5", "#fc8d62", "#8da0cb", "#e5c494"],
-        legend: true
-      },
-      marks: [
-        Plot.barY(dailyPosts, {
-          x: "P_Date",
-          y: "n",
-          fill: "monitoring_group",
-          tip: true
-        }),
-        Plot.text(events, {
-          // substract one day from the date to display the text on the left side of the event
-          // x: d => new Date(d.date.setDate(d.date.getDate() - 0)),
-          x: "date",
-          y: () => Math.max(...dailyData.map(d => d.n)) * 1.05,
-          text: "description",
-          dy: -50,
-          // dx: -10,
-          rotate: -90,
-          fill: "red",
-          fontSize: 12,
-          textAnchor: "middle"
-        })
-      ],
-      x: {
-        type: "band",
-        tickFormat: localeKA.format("%d %b"),
-        tickRotate: -90,
-        label: "თარიღი: "
-      },
-      y: {
-        label: "პოსტების რ-ნობა: "
-      }
-  })
-});
-
-```
-
-```js
-
-const dates = narratives.map(d => new Date(d.P_Date));
-
-const minDate = new Date(Math.min(...dates));
-
-const maxDate = new Date(Math.max(...dates))
-
-const endDate = Inputs.date({ value: new Date(maxDate), label: "აარჩიეთ საბოლოო თარიღი" });
-
-const startDate = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
-
-const endDateActors = Inputs.date({ value: new Date(maxDate), label: "აარჩიეთ საბოლოო თარიღი" });
-
-const startDateActors = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
-
-const tabs = document.querySelectorAll('.tabs input[type="radio"]');
-
-const tabs_actors = document.querySelectorAll('.tabs-actors input[type="radio"]');
-
-const panels = document.querySelectorAll('.tab-panels .tab-panel');
-
-const panels_actors = document.querySelectorAll('.tab-panels-actors .tab-panel');
-
-const narrativeTabMappings = {"All":"chart-all","აზერბაიჯანულენოვანი სეგმენტი":"chart-az","აჭარის სეგმენტი":"chart-adjara","სომხურენოვანი სეგმენტი":"chart-arm","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other"};
-
-const actorsTabMappings = {"All":"chart-all-actors","აზერბაიჯანულენოვანი სეგმენტი":"chart-az-actors","აჭარის სეგმენტი":"chart-adjara-actors","სომხურენოვანი სეგმენტი":"chart-arm-actors","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other-actors"};
-
-
-function renderChart(group,id){
-  let data=narratives.filter(d=>(group==='All'||d.monitoring_group===group)&&d.P_Date>=startDate.value&&d.P_Date<=endDate.value);
-  if(data.length===0){
-    document.getElementById(id).innerHTML='<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
-    return;
-  }
-  let agg=Object.entries(data.reduce((a,{narrative_text,n})=>(a[narrative_text]=(a[narrative_text]||0)+n,a),{})).sort(([,a],[,b])=>b-a).slice(0,7);
-  document.getElementById(id).innerHTML='';
-  document.getElementById(id).appendChild(Plot.plot(
-    {
-    style: {fontFamily: "BPG Arial"},
-      marks:[
-        Plot.barX(
-          agg,
-            {
-              x:d=>d[1],y:d=>d[0],
-              sort:{
-                y: "x",
-                reverse: true
-              },
-              tip: true
-            }
-        ),
-        Plot.ruleX([0])
-      ],
-        width:700,
-        height:400,
-        marginLeft:150,
-        x:{
-          label: "რ-ნობა: "
-        },
-        y:{
-            label: null,
-            tickFormat: d => d.replace(/(.{10}\s)/g, '$1\n')
-          }
-    }
-  ));
-}
-
-function renderChartActors(group, id) {
-  let data_actors = actors.filter(d =>
-    (group === 'All' || d.monitoring_group === group) &&
-    d.P_Date >= startDateActors.value && d.P_Date <= endDateActors.value
-  );
-
-  if (data_actors.length === 0) {
-    document.getElementById(id).innerHTML =
-      '<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
-    return;
-  }
-
-  let agg_actors = Object.entries(
-    data_actors.reduce((a, { actor_text, tone, n }) => {
-      const key = `${actor_text}||${tone}`;
-      a[key] = (a[key] || 0) + n;
-      return a;
-    }, {})
-  ).map(([key, n]) => {
-    const [actor_text, tone] = key.split("||");
-    return { actor_text, tone, n };
-  });
-
-  let totals = agg_actors.reduce((a, { actor_text, n }) => {
-    a[actor_text] = (a[actor_text] || 0) + n;
-    return a;
-  }, {});
-
-  agg_actors = agg_actors
-    .filter(({ actor_text }) => totals[actor_text] > 0)
-    .sort((a, b) => totals[b.actor_text] - totals[a.actor_text])
-    .slice(0, 7);
-
-  document.getElementById(id).innerHTML = '';
-  document.getElementById(id).appendChild(Plot.plot({
-    style: { fontFamily: "BPG Arial" },
-    color: {
-      domain: ["დადებითი", "ნეიტრალური", "უარყოფითი"],
-      range: ["#66c2a5", "#fc8d62", "#8da0cb"],
-      legend: true
-    },
-    marks: [
-      Plot.barX(agg_actors, {
-        x: "n",
-        y: "actor_text",
-        fill: "tone",
-        tip: true
-      }),
-      Plot.ruleX([0])
-    ],
-    width: 700,
-    height: 400,
-    marginLeft: 250,
-      y:{
-      label: null,
-      tickFormat: d => d.replace(/(.{10}\s)/g, '$1\n')
-    },
-    x: { label: "რ-ნობა" }
-  }));
-}
-
-
-function updateCharts(){Object.entries(narrativeTabMappings).forEach(([g,id])=>renderChart(g,id));}
-
-tabs.forEach(t=>t.addEventListener('change',()=>{panels.forEach(p=>p.style.display='none');document.getElementById(`${t.id}-panel`).style.display='block';updateCharts();}));
-
-[startDate,endDate].forEach(e=>e.addEventListener('input',updateCharts));
-
-function updateChartsActors(){Object.entries(actorsTabMappings).forEach(([g,id])=>renderChartActors(g,id));}
-
-tabs_actors.forEach(t => t.addEventListener('change', () => {
-  panels_actors.forEach(p => p.style.display = 'none');
-  document.getElementById(`${t.id}-panel`).style.display = 'block';
-  updateChartsActors();
-}));
-
-[startDateActors, endDateActors].forEach(e => e.addEventListener('input', updateChartsActors));
-
-Promise.all([dailyPosts,narratives,actors]).then(()=>{updateCharts(); updateChartsActors();});
-
-// build a word cloud from main_themes, size sould be n, color should be theme
-
-// themeCloud = Treemap(main_themes) {}
-
-```
-
-```js
-
 // Copyright 2021-2023 Observable, Inc.
 // Released under the ISC license.
 // https://observablehq.com/@d3/treemap
@@ -521,6 +259,345 @@ function Swatches(color, {
   <div>${domain.map(value => htl.html`<span class="${id}" style="--color: ${color(value)}">${format(value)}</span>`)}</div>`;
 }
 
+```
+
+```js
+// Load data
+
+const dailyPosts = FileAttachment("data/daily_posts_by_group.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    P_Date: new Date(d.P_Date),
+    n: +d.n  // ensure numeric type
+  }))
+);
+
+const narratives = FileAttachment("data/narratives_all.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    P_Date: new Date(d.P_Date),
+    n: +d.n  // ensure numeric type
+  }))
+);
+
+const actors = FileAttachment("data/actors_all.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    P_Date: new Date(d.P_Date),
+    n: +d.n  // ensure numeric type
+  }))
+);
+
+const main_events = FileAttachment("data/events_all.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    date: new Date(d.date)
+  }))
+);
+
+const main_themes = FileAttachment("data/themes_all.csv").csv({ typed: true }).then(rows => 
+  rows.map(d => ({ 
+    ...d, 
+    P_Date: new Date(d.P_Date),
+    n: +d.n  // ensure numeric type
+  }))
+);
+
+
+```
+
+
+
+```js
+// Define Georgian locale for date formatting
+const localeKA = d3.timeFormatLocale({
+  dateTime: "%A, %e %B %Y %X",
+  date: "%d/%m/%Y",
+  time: "%H:%M:%S",
+  periods: ["AM", "PM"],
+  days: ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"],
+  shortDays: ["კვ", "ორ", "სმ", "ოთ", "ხთ", "პრ", "შბ"],
+  months: ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"],
+  shortMonths: ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"]
+});
+
+// Define chart for daily posts by group
+const dailyPostsChart = Promise.all([dailyPosts, main_events]).then(([dailyData, events]) => {
+    return Plot.plot({
+      style: {fontFamily: "BPG Arial"},
+      color: {
+        domain: ["აზერბაიჯანულენოვანი სეგმენტი", "აჭარის სეგმენტი", "სომხურენოვანი სეგმენტი", "ქართულენოვანი სეგმენტი (აჭარის გარდა)"],
+        range: ["#66c2a5", "#fc8d62", "#8da0cb", "#e5c494"],
+        legend: true
+      },
+      marks: [
+        Plot.barY(dailyPosts, {
+          x: "P_Date",
+          y: "n",
+          fill: "monitoring_group",
+          tip: true
+        }),
+        Plot.text(events, {
+          // substract one day from the date to display the text on the left side of the event
+          // x: d => new Date(d.date.setDate(d.date.getDate() - 0)),
+          x: "date",
+          y: () => Math.max(...dailyData.map(d => d.n)) * 1.05,
+          text: "description",
+          dy: -50,
+          // dx: -10,
+          rotate: -90,
+          fill: "red",
+          fontSize: 12,
+          textAnchor: "middle"
+        })
+      ],
+      x: {
+        type: "band",
+        tickFormat: localeKA.format("%d %b"),
+        tickRotate: -90,
+        label: "თარიღი: "
+      },
+      y: {
+        label: "პოსტების რ-ნობა: "
+      }
+  })
+});
+
+```
+
+```js
+
+const dates = dailyPosts.map(d => new Date(d.P_Date));
+
+const minDate = new Date(Math.min(...dates));
+
+const maxDate = new Date(Math.max(...dates))
+
+const endDate = Inputs.date({ value: new Date(maxDate), label: "აარჩიეთ საბოლოო თარიღი" });
+
+const startDate = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
+
+const endDateActors = Inputs.date({ value: new Date(maxDate), label: "აარჩიეთ საბოლოო თარიღი" });
+
+const startDateActors = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
+
+const endDateTopics = Inputs.date({ value: new Date(maxDate), label: "აარჩიეთ საბოლოო თარიღი" });
+
+const startDateTopics = Inputs.date({ value: new Date(maxDate.setMonth(maxDate.getMonth() - 1)), label: "აარჩიეთ საწყისი თარიღი" });
+
+const tabs = document.querySelectorAll('.tabs input[type="radio"]');
+
+const tabs_actors = document.querySelectorAll('.tabs-actors input[type="radio"]');
+
+const tabs_topics = document.querySelectorAll('.tabs-topics input[type="radio"]');
+
+const panels = document.querySelectorAll('.tab-panels .tab-panel');
+
+const panels_actors = document.querySelectorAll('.tab-panels-actors .tab-panel');
+
+const panels_topics = document.querySelectorAll('.tab-panels-topics .tab-panel');
+
+
+const narrativeTabMappings = {"All":"chart-all","აზერბაიჯანულენოვანი სეგმენტი":"chart-az","აჭარის სეგმენტი":"chart-adjara","სომხურენოვანი სეგმენტი":"chart-arm","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other"};
+
+const actorsTabMappings = {"All":"chart-all-actors","აზერბაიჯანულენოვანი სეგმენტი":"chart-az-actors","აჭარის სეგმენტი":"chart-adjara-actors","სომხურენოვანი სეგმენტი":"chart-arm-actors","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other-actors"};
+
+const topicsTabMappings = {"All":"chart-all-topics","აზერბაიჯანულენოვანი სეგმენტი":"chart-az-topics","აჭარის სეგმენტი":"chart-adjara-topics","სომხურენოვანი სეგმენტი":"chart-arm-topics","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other-topics"};
+
+
+function renderChart(group,id){
+  let data=narratives.filter(d=>(group==='All'||d.monitoring_group===group)&&d.P_Date>=startDate.value&&d.P_Date<=endDate.value);
+  if(data.length===0){
+    document.getElementById(id).innerHTML='<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
+    return;
+  }
+  let agg=Object.entries(data.reduce((a,{narrative_text,n})=>(a[narrative_text]=(a[narrative_text]||0)+n,a),{})).sort(([,a],[,b])=>b-a).slice(0,7);
+  document.getElementById(id).innerHTML='';
+  document.getElementById(id).appendChild(Plot.plot(
+    {
+    style: {fontFamily: "BPG Arial"},
+      marks:[
+        Plot.barX(
+          agg,
+            {
+              x:d=>d[1],y:d=>d[0],
+              sort:{
+                y: "x",
+                reverse: true
+              },
+              tip: true
+            }
+        ),
+        Plot.ruleX([0])
+      ],
+        width:700,
+        height:400,
+        marginLeft:150,
+        x:{
+          label: "რ-ნობა: "
+        },
+        y:{
+            label: null,
+            tickFormat: d => d.replace(/(.{10}\s)/g, '$1\n')
+          }
+    }
+  ));
+}
+
+function renderChartActors(group, id) {
+  let data_actors = actors.filter(d =>
+    (group === 'All' || d.monitoring_group === group) &&
+    d.P_Date >= startDateActors.value && d.P_Date <= endDateActors.value
+  );
+
+  if (data_actors.length === 0) {
+    document.getElementById(id).innerHTML =
+      '<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
+    return;
+  }
+
+  let agg_actors = Object.entries(
+    data_actors.reduce((a, { actor_text, tone, n }) => {
+      const key = `${actor_text}||${tone}`;
+      a[key] = (a[key] || 0) + n;
+      return a;
+    }, {})
+  ).map(([key, n]) => {
+    const [actor_text, tone] = key.split("||");
+    return { actor_text, tone, n };
+  });
+
+  let totals = agg_actors.reduce((a, { actor_text, n }) => {
+    a[actor_text] = (a[actor_text] || 0) + n;
+    return a;
+  }, {});
+
+  agg_actors = agg_actors
+    .filter(({ actor_text }) => totals[actor_text] > 0)
+    .sort((a, b) => totals[b.actor_text] - totals[a.actor_text])
+    .slice(0, 7);
+
+  document.getElementById(id).innerHTML = '';
+  document.getElementById(id).appendChild(Plot.plot({
+    style: { fontFamily: "BPG Arial" },
+    color: {
+      domain: ["დადებითი", "ნეიტრალური", "უარყოფითი"],
+      range: ["#66c2a5", "#fc8d62", "#8da0cb"],
+      legend: true
+    },
+    marks: [
+      Plot.barX(agg_actors, {
+        x: "n",
+        y: "actor_text",
+        fill: "tone",
+        tip: true
+      }),
+      Plot.ruleX([0])
+    ],
+    width: 700,
+    height: 400,
+    marginLeft: 250,
+      y:{
+      label: null,
+      tickFormat: d => d.replace(/(.{10}\s)/g, '$1\n')
+    },
+    x: { label: "რ-ნობა" }
+  }));
+}
+
+
+
+async function renderChartTopics(group, id) {
+  const themesData = await main_themes; // await the promise resolution
+
+  let data_topics = themesData.filter(d =>
+    (group === 'All' || d.monitoring_group === group) &&
+    d.P_Date >= startDateTopics.value &&
+    d.P_Date <= endDateTopics.value
+  );
+
+  if (data_topics.length === 0) {
+    document.getElementById(id).innerHTML =
+      '<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
+    return;
+  }
+
+  let agg_topics = Object.entries(
+    data_topics.reduce((a, { topic_text, narrative_text, n }) => {
+      const key = `${topic_text}||${narrative_text}`;
+      a[key] = (a[key] || 0) + n;
+      return a;
+    }, {})
+  ).map(([key, n]) => {
+    const [topic_text, narrative_text] = key.split("||");
+    return { topic_text, narrative_text, n };
+  });
+
+  let totals_topics = agg_topics.reduce((a, { topic_text, n }) => {
+    a[topic_text] = (a[topic_text] || 0) + n;
+    return a;
+  }, {});
+
+
+  // agg_topics = agg_topics
+  //  .filter(({ topic_text }) => totals_topics[topic_text] > 0)
+  //  .sort((a, b) => totals_topics[b.topic_text] - totals_topics[a.topic_text])
+  //  .slice(0, 12);
+
+  document.getElementById(id).innerHTML = '';
+  document.getElementById(id).appendChild(Treemap(agg_topics, {
+    path: d => d.topic_text, 
+    value: d => d.n,
+    group: d => d.topic_text,
+    /// wrap label text to fit in the rectangle
+    label: d => d.narrative_text.replace(/(.{10}\s)/g, '$1\n') + ". " + d.n.toLocaleString("en") + " შემთხვევა",
+    width: 700,
+    height: 400
+  }));
+}
+
+
+function updateCharts(){Object.entries(narrativeTabMappings).forEach(([g,id])=>renderChart(g,id));}
+
+tabs.forEach(t=>t.addEventListener('change',()=>{panels.forEach(p=>p.style.display='none');document.getElementById(`${t.id}-panel`).style.display='block';updateCharts();}));
+
+[startDate,endDate].forEach(e=>e.addEventListener('input',updateCharts));
+
+function updateChartsActors(){Object.entries(actorsTabMappings).forEach(([g,id])=>renderChartActors(g,id));}
+
+tabs_actors.forEach(t => t.addEventListener('change', () => {
+  panels_actors.forEach(p => p.style.display = 'none');
+  document.getElementById(`${t.id}-panel`).style.display = 'block';
+  updateChartsActors();
+}));
+
+[startDateActors, endDateActors].forEach(e => e.addEventListener('input', updateChartsActors));
+
+function updateChartsTopics() {
+  Object.entries(topicsTabMappings).forEach(([g, id]) => renderChartTopics(g, id));
+}
+
+tabs_topics.forEach(t => t.addEventListener('change', () => {
+  panels_topics.forEach(p => p.style.display = 'none');
+  document.getElementById(`${t.id}-panel`).style.display = 'block';
+  updateChartsTopics();
+}));
+
+[startDateTopics, endDateTopics].forEach(e => e.addEventListener('input', updateChartsTopics));
+
+Promise.all([dailyPosts, narratives, actors, main_themes])
+  .then(() => {
+    updateCharts();
+    updateChartsActors();
+    updateChartsTopics();
+  });
+
+```
+
+
+```js
+
+
 const themeCloud = Treemap(main_themes, {
   path: d => d.topic_text, 
   value: d => d.n, // size of each node (file); null for internal nodes (folders)
@@ -605,7 +682,7 @@ const key = Swatches(themeCloud.scales.color)
   </div>
 
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2>შვიდი ყველაზე გავრცელებული თემა (ფილტრი ჯერ არ მუშაობს)</h2>
+    <h2>შვიდი ყველაზე გავრცელებული თემა (დიაგრამის სანახავად წელი გადაიყვანე 2025-ზე)</h2>
     <div class="tabs-topics">
       <input type="radio" name="tabset-topics" id="tab-full-data-topics" value="All" checked>
       <label for="tab-full-data-topics">სრული მონაცემები</label>
@@ -625,7 +702,8 @@ const key = Swatches(themeCloud.scales.color)
       <div class="tab-panel" id="tab4-topics-panel" style="display:none;"><div id="chart-arm-topics"></div></div>
       <div class="tab-panel" id="tab5-topics-panel" style="display:none;"><div id="chart-other-topics"></div></div>
     </div>
-    ${themeCloud}
+    ${startDateTopics}
+    ${endDateTopics}
     ${key}
   </div>
 </div>
