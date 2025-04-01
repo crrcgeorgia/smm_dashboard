@@ -465,7 +465,7 @@ Promise.all([dailyPosts, narratives, actors, main_themes])
   </div>
 
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2>შვიდი ყველაზე გავრცელებული თემა (დიაგრამის სანახავად წელი გადაიყვანე 2025-ზე)</h2>
+    <h2>შვიდი ყველაზე გავრცელებული თემა</h2>
     <div class="tabs-topics">
       <input type="radio" name="tabset-topics" id="tab-full-data-topics" value="All" checked>
       <label for="tab-full-data-topics">სრული მონაცემები</label>
