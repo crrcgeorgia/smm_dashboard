@@ -47,6 +47,13 @@ bind_rows(
   ) |> 
   select(
     actor_id, actor_text, monitoring_group, tone, P_Date, n
+  ) |>
+  mutate(
+    tone_id = case_when(
+      tone == "დადებითი" ~ "positive",
+      tone == "უარყოფითი" ~ "negative",
+      tone == "ნეიტრალური" ~ "neutral"
+    )
   )  -> actors_by_tone
 
 cat(format_csv(actors_by_tone))

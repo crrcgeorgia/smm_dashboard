@@ -4,4 +4,15 @@
 :root {
   --theme-foreground-focus: green;
 }
-  
+
+#title_daily_posts {
+  text-transform: uppercase;
+}
+
+#title_narratives {
+  text-transform: uppercase;
+}
+
+#title_actors {
+  text-transform: uppercase;
+}

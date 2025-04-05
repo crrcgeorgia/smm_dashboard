@@ -5,7 +5,8 @@ library(readxl)
 init_data <- read_excel("src/data/dashboard_data.xlsx")
 
 
-narratives_src <- read_excel("src/data/dashboard_data.xlsx", col_names = F, sheet = "ნარატივები") |> 
+narratives_src <- read_excel("src/data/dashboard_data.xlsx", col_names = F, sheet = "ნარატივები") |>
+  select(-3) |>
   set_names(
     c("narrative_id", "narrative_text")
   )
@@ -35,10 +36,17 @@ init_data |>
   ) |>
   group_by(
     P_Date, monitoring_group
-  ) |>  count() |> 
+  ) |>  count() |> ungroup() |>
   mutate(
     P_Date = as.Date(P_Date),
-    id = row_number()
+    id = row_number(),
+    monitoring_group_id = case_when(
+      monitoring_group == "სომხურენოვანი სეგმენტი" ~ "arm",
+      monitoring_group == "აზერბაიჯანულენოვანი სეგმენტი" ~ "az",
+      monitoring_group == "აჭარის სეგმენტი" ~ "adjara",
+      monitoring_group == "ქართულენოვანი სეგმენტი (აჭარის გარდა)" ~ "other",
+      T ~ "all"
+    )
   ) -> daily_posts_by_group
   
 

@@ -40,8 +40,6 @@ FileAttachment("fonts/bpg-arial-webfont.ttf").url().then(url => {
 });
 
 
-
-
 ```
 
 ```js
@@ -78,6 +76,7 @@ const main_events = FileAttachment("data/events_all.csv").csv({ typed: true }).t
   }))
 );
 
+
 const main_themes = FileAttachment("data/themes_all.csv").csv({ typed: true }).then(rows => 
   rows.map(d => ({ 
     ...d, 
@@ -94,82 +93,121 @@ main_themes.then(data => {
 });
 
 
+const translations = FileAttachment("data/translations.json").json().then(data => {
+  return data;
+});
 ```
 
 
 
 ```js
+
+let currentLang = "ka"; // default language Georgian
+
+
 // Define Georgian locale for date formatting
-const localeKA = d3.timeFormatLocale({
-  dateTime: "%A, %e %B %Y %X",
-  date: "%d/%m/%Y",
-  time: "%H:%M:%S",
-  periods: ["AM", "PM"],
-  days: ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"],
-  shortDays: ["კვ", "ორ", "სმ", "ოთ", "ხთ", "პრ", "შბ"],
-  months: ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"],
-  shortMonths: ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"]
-});
+const d3Locales = {
+  ka: d3.timeFormatLocale({
+    dateTime: "%A, %e %B %Y %X",
+    date: "%d/%m/%Y",
+    time: "%H:%M:%S",
+    periods: ["AM", "PM"],
+    days: ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"],
+    shortDays: ["კვ", "ორ", "სმ", "ოთ", "ხთ", "პრ", "შბ"],
+    months: ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"],
+    shortMonths: ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"]
+  }),
+  en: d3.timeFormatLocale({
+    dateTime: "%A, %e %B %Y %X",
+    date: "%m/%d/%Y",
+    time: "%H:%M:%S",
+    periods: ["AM", "PM"],
+    days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    shortDays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    months: ["January", "February", "March", "April", "May", "June",
+             "July", "August", "September", "October", "November", "December"],
+    shortMonths: ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  })
+};
 
 // Define chart for daily posts by group
-const dailyPostsChart = Promise.all([dailyPosts, main_events]).then(([dailyData, events]) => {
-    return Plot.plot({
-      style: {fontFamily: "BPG Arial"},
-      color: {
-        domain: ["აზერბაიჯანულენოვანი სეგმენტი", "აჭარის სეგმენტი", "სომხურენოვანი სეგმენტი", "ქართულენოვანი სეგმენტი (აჭარის გარდა)"],
-        range: ["#66c2a5", "#fc8d62", "#8da0cb", "#e5c494"],
-        legend: true
-      },
-      marks: [
-        Plot.barY(dailyPosts, {
-          x: "P_Date",
-          y: "n",
-          fill: "monitoring_group",
-          tip: true
-        }),
-        Plot.text(events, {
-          // substract one day from the date to display the text on the left side of the event
-          // x: d => new Date(d.date.setDate(d.date.getDate() - 0)),
-          x: "date",
-          y: () => Math.max(...dailyData.map(d => d.n)) * 1.05,
-          text: "description",
-          dy: -50,
-          // dx: -10,
-          rotate: -90,
-          fill: "red",
-          fontSize: 12,
-          textAnchor: "middle"
-        })
-      ],
-      x: {
-        type: "band",
-        tickFormat: localeKA.format("%d %b"),
-        tickRotate: -90,
-        label: "თარიღი: "
-      },
-      y: {
-        label: "პოსტების რ-ნობა: "
-      }
-  })
-});
+async function renderDailyPostsChart() {
+  
+  const [dailyDataRaw, rawEvents] = await Promise.all([dailyPosts, main_events]);
+  
+  const locale = d3Locales[currentLang];
+  
+  const eventTranslations = translations[currentLang].events;
 
-```
+  const monitoringGroupTranslation = translations[currentLang].segments;
 
-```js
+  // Merge translations into events by ID
+  const events = rawEvents.map(event => ({
+    ...event,
+    description: eventTranslations?.[event.event_id] || event.description
+  }));   // merge translation events to main_events and then use in the chart
+
+  const dailyData = dailyDataRaw.map(dailyData => ({
+    ...dailyData,
+    monitoring_group: monitoringGroupTranslation?.[dailyData.monitoring_group_id] || dailyData.monitoring_group
+  }));   // merge translation events to main_events and then use in the chart
+
+  return Plot.plot({
+    style: {fontFamily: "BPG Arial"},
+    color: {
+      domain: dailyData.map(d => d.monitoring_group),
+      range: ["#ffffb3", "#bc80bd", "#b3de69", "#80b1d3"],
+      legend: true
+    },
+    marks: [
+      Plot.barY(dailyData, {
+        x: "P_Date",
+        y: "n",
+        fill: "monitoring_group",
+        tip: true
+      }),
+      Plot.text(events, {
+        x: "date",
+        y: () => Math.max(...dailyData.map(d => d.n)) * 1.05,
+        text: "description", // optionally use translated text if available
+        dy: -50,
+        rotate: -90,
+        fill: "red",
+        fontSize: 12,
+        textAnchor: "middle"
+      })
+    ],
+    x: {
+      type: "band",
+      tickFormat: locale.format("%d %b"),
+      tickRotate: -90,
+      label: null
+    },
+    y: {
+      label: translations[currentLang].y_axis_label_daily_posts || "პოსტების რ-ნობა: "
+    }
+  });
+}
+
+
 const dates = dailyPosts.map(d => new Date(d.P_Date));
 
 const maxDate = new Date(Math.max(...dates));
+
 const initialEndDate = new Date(maxDate); // Preserves original maxDate
 
 const initialStartDate = new Date(initialEndDate);
 
 initialStartDate.setMonth(initialStartDate.getMonth() - 1); // minus one month clearly
 
-const endDate = Inputs.date({ value: initialEndDate, label: "აარჩიეთ საბოლოო თარიღი" });
-const startDate = Inputs.date({ value: initialStartDate, label: "აარჩიეთ საწყისი თარიღი" });
+const endDate = Inputs.date({ value: initialEndDate});
 
-const endDateActors = Inputs.date({ value: initialEndDate, label: "აარჩიეთ საბოლოო თარიღი" });
-const startDateActors = Inputs.date({ value: initialStartDate, label: "აარჩიეთ საწყისი თარიღი" });
+const startDate = Inputs.date({ value: initialStartDate});
+
+const endDateActors = Inputs.date({ value: initialEndDate});
+
+const startDateActors = Inputs.date({ value: initialStartDate});
 
 const endDateTopics = Inputs.date({ value: initialEndDate, label: "აარჩიეთ საბოლოო თარიღი" });
 
@@ -195,21 +233,36 @@ const actorsTabMappings = {"All":"chart-all-actors","აზერბაიჯა
 
 const topicsTabMappings = {"All":"chart-all-topics","აზერბაიჯანულენოვანი სეგმენტი":"chart-az-topics","აჭარის სეგმენტი":"chart-adjara-topics","სომხურენოვანი სეგმენტი":"chart-arm-topics","ქართულენოვანი სეგმენტი (აჭარის გარდა)":"chart-other-topics"};
 
-```
 
-```js
 
-function renderChart(group,id){
-  let data=narratives.filter(d=>(group==='All'||d.monitoring_group===group)&&d.P_Date>=startDate.value&&d.P_Date<=endDate.value);
+async function renderChart(group,id){
+  
+  const [narrativesRaw] = await Promise.all([narratives]);
+  
+  const no_data_message = translations[currentLang].no_data;
+
+  const narrativeTranslations = translations[currentLang].narratives;
+
+  const data=narrativesRaw.filter(d=>(group==='All'||d.monitoring_group===group)&&d.P_Date>=startDate.value&&d.P_Date<=endDate.value);
+  
   if(data.length===0){
-    document.getElementById(id).innerHTML='<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
+    document.getElementById(id).innerHTML =
+      `<p>${no_data_message}</p>`;
     return;
   }
-  let agg=Object.entries(data.reduce((a,{narrative_text,n})=>(a[narrative_text]=(a[narrative_text]||0)+n,a),{})).sort(([,a],[,b])=>b-a).slice(0,7);
+  
+  let dataTranslated = data.map(data => ({
+    ...data,
+    narrative_text: narrativeTranslations?.[data.narrative_id] || data.narrative_text
+  }));
+
+
+  let agg=Object.entries(dataTranslated.reduce((a,{narrative_text,n})=>(a[narrative_text]=(a[narrative_text]||0)+n,a),{})).sort(([,a],[,b])=>b-a).slice(0,7);
   document.getElementById(id).innerHTML='';
   document.getElementById(id).appendChild(Plot.plot(
     {
     style: {fontFamily: "BPG Arial"},
+
       marks:[
         Plot.barX(
           agg,
@@ -228,7 +281,7 @@ function renderChart(group,id){
         height:400,
         marginLeft:150,
         x:{
-          label: "რ-ნობა: "
+          label: translations[currentLang].narrative_count_axis_text || "შემთხვევების რ-ნობა: "
         },
         y:{
             label: null,
@@ -238,20 +291,37 @@ function renderChart(group,id){
   ));
 }
 
-function renderChartActors(group, id) {
-  let data_actors = actors.filter(d =>
+async function renderChartActors(group, id) {
+
+  const no_data_message = translations[currentLang].no_data;
+
+  const [actorsRaw] = await Promise.all([actors]);
+
+  const actorTranslations = translations[currentLang].actors;
+
+  const toneTranslations = translations[currentLang].tone;
+
+  const data_actors = actors.filter(d =>
     (group === 'All' || d.monitoring_group === group) &&
     d.P_Date >= startDateActors.value && d.P_Date <= endDateActors.value
   );
 
   if (data_actors.length === 0) {
     document.getElementById(id).innerHTML =
-      '<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
+      `<p>${no_data_message}</p>`;
     return;
   }
 
+  let dataActorsTranslated = data_actors.map(data_actors => ({
+    ...data_actors,
+    actor_text: actorTranslations?.[data_actors.actor_id] || data_actors.actor_text,
+    tone: toneTranslations?.[data_actors.tone_id] || data_actors.tone
+  }));
+
+  console.log(toneTranslations);
+
   let agg_actors = Object.entries(
-    data_actors.reduce((a, { actor_text, tone, n }) => {
+    dataActorsTranslated.reduce((a, { actor_text, tone, n }) => {
       const key = `${actor_text}||${tone}`;
       a[key] = (a[key] || 0) + n;
       return a;
@@ -275,7 +345,7 @@ function renderChartActors(group, id) {
   document.getElementById(id).appendChild(Plot.plot({
     style: { fontFamily: "BPG Arial" },
     color: {
-      domain: ["დადებითი", "ნეიტრალური", "უარყოფითი"],
+      domain: agg_actors.map(d => d.tone),
       range: ["#66c2a5", "#fc8d62", "#8da0cb"],
       legend: true
     },
@@ -308,7 +378,6 @@ function getActiveTab(tabsSelector) {
 
 async function renderChartTopics(group, id) {
   const themesData = await main_themes;
-
   const container = document.getElementById(id);
   const legendContainer = document.getElementById('tab-key-topics');
   container.innerHTML = '';
@@ -354,7 +423,9 @@ async function renderChartTopics(group, id) {
   legendContainer.appendChild(key);
 }
 
-
+renderDailyPostsChart().then(chart => {
+  document.getElementById("daily-posts-chart-container").appendChild(chart);
+});
 
 function updateCharts(){Object.entries(narrativeTabMappings).forEach(([g,id])=>renderChart(g,id));}
 
@@ -388,36 +459,101 @@ tabs_topics.forEach(t => t.addEventListener('change', () => {
 [startDateTopics, endDateTopics].forEach(e => e.addEventListener('input', updateChartsTopics));
 
 
-Promise.all([dailyPosts, narratives, actors, main_themes])
+Promise.all([dailyPosts, narratives, actors, main_themes, translations])
   .then(() => {
     updateCharts();
     updateChartsActors();
     updateChartsTopics();
   });
 
+async function updateTexts() {
+  document.getElementById('start-date-container').innerText = translations[currentLang].date_picker_start;
+  document.getElementById('end-date-container').innerText = translations[currentLang].date_picker_end;
+  document.getElementById('start-date-container-actors').innerText = translations[currentLang].date_picker_start;
+  document.getElementById('end-date-container-actors').innerText = translations[currentLang].date_picker_end;
+  document.getElementById('title_daily_posts').innerText = translations[currentLang].title_daily_posts;
+  document.getElementById('title_narratives').innerText = translations[currentLang].title_narratives;
+  document.getElementById('title_actors').innerText = translations[currentLang].title_actors;
+  document.getElementById('title_topics').innerText = translations[currentLang].title_topics;
+
+  document.querySelectorAll('.tabs label').forEach((el, idx) => {
+    const keys = ['all', 'az', 'adjara', 'arm', 'other'];
+    el.innerText = translations[currentLang].segments[keys[idx]];
+  });
+
+ document.querySelectorAll('.tabs-actors label').forEach((el, idx) => {
+   const keys = ['all', 'az', 'adjara', 'arm', 'other'];
+   el.innerText = translations[currentLang].segments[keys[idx]];
+ });
+ 
+document.querySelectorAll('.tabs-topics label').forEach((el, idx) => {
+  const keys = ['all', 'az', 'adjara', 'arm', 'other'];
+  el.innerText = translations[currentLang].segments[keys[idx]];
+});
+
+  // startDate.label = translations[currentLang].date_picker_start;
+  
+  // console.log(startDate.label);
+
+  // endDate.label = translations[currentLang].date_picker_end;
+  startDateActors.label = translations[currentLang].date_picker_start;
+  endDateActors.label = translations[currentLang].date_picker_end;
+  startDateTopics.label = translations[currentLang].date_picker_start;
+  endDateTopics.label = translations[currentLang].date_picker_end;
+  updateCharts();
+  updateChartsActors();
+  updateChartsTopics();
+}
+
+// Initial UI update
+updateTexts();
+
+document.getElementById("languageSwitcher").addEventListener('change', (e) => {
+  currentLang = e.target.value;
+  updateTexts();         // your existing UI text update logic
+  updateCharts();        // your narrative charts
+  updateChartsActors();  // your actor charts
+  updateChartsTopics();  // your topic charts
+
+  // 👉 Re-render daily posts chart
+  renderDailyPostsChart().then(chart => {
+    const container = document.getElementById("daily-posts-chart-container");
+    container.innerHTML = "";
+    container.appendChild(chart);
+  });
+});
+
+// console.log(title_daily_posts);
+
+// console.log("Language switched to: " + currentLang);
+
 ```
 
+<select id="languageSwitcher">
+  <option value="ka">ქართული</option>
+  <option value="en">English</option>
+</select>
 
 <div class="grid grid-cols-4">
   
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2>რელევანტური პოსტების რაოდენობა თარიღის მიხედვით</h2>
+    <h2 id="title_daily_posts"></h2>
     <figure style="max-width: none;">
       <div style="display: flex; flex-direction: column; align-items: center;">
         <div style="display: flex; align-items: center;">
-          ${dailyPostsChart}
+          <div id="daily-posts-chart-container"></div>
         </div>
       </div>
     </figure>
   </div>
 
   <div class="card grid-colspan-2">
-    <h2>შვიდი ყველაზე გავრცელებული ანტიდასავლური ნარატივი</h2>
+    <h2 id = "title_narratives"></h2>
         <div class="tabs">
           <input type="radio" name="tabset-narratives" id="tab-full-data" value="All" checked>
           <label for="tab-full-data">სრული მონაცემები</label>
           <input type="radio" name="tabset-narratives" id="tab2" value="აზერბაიჯანულენოვანი სეგმენტი">
-          <label for="tab2">აზერბაიჯანულენოვანი სეგმენტი</label>
+          <label for="tab2">azerbaijanulenovani სეგმენტი</label>
           <input type="radio" name="tabset-narratives" id="tab3" value="აჭარის სეგმენტი">
           <label for="tab3">აჭარის სეგმენტი</label>
           <input type="radio" name="tabset-narratives" id="tab4" value="სომხურენოვანი სეგმენტი">
@@ -432,15 +568,27 @@ Promise.all([dailyPosts, narratives, actors, main_themes])
           <div class="tab-panel" id="tab4-panel" style="display:none;"><div id="chart-arm"></div></div>
           <div class="tab-panel" id="tab5-panel" style="display:none;"><div id="chart-other"></div></div>
         </div>
-      ${startDate}
-      ${endDate}
+        <table>
+          <tbody>
+            <tr></tr>
+            <tr>
+              <td id="start-date-container"></td>
+              <td>${startDate}</td>
+            </tr>
+            <tr>
+              <td id="end-date-container"></td>
+              <td>${endDate}</td>
+            </tr>
+            <tr></tr>
+          </tbody>
+      </table>
     </div>
   </div>
 </div>
 
 <div class="grid grid-cols-4">
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2>შვიდი ყველაზე ხშირად ნახსენები აქტორი</h2>
+    <h2 id = "title_actors"></h2>
     <div class="tabs-actors">
       <input type="radio" name="tabset-actors" id="tab-full-data-actors" value="All" checked>
       <label for="tab-full-data-actors">სრული მონაცემები</label>
@@ -460,12 +608,24 @@ Promise.all([dailyPosts, narratives, actors, main_themes])
       <div class="tab-panel" id="tab4-actors-panel" style="display:none;"><div id="chart-arm-actors"></div></div>
       <div class="tab-panel" id="tab5-actors-panel" style="display:none;"><div id="chart-other-actors"></div></div>
     </div>
-    ${startDateActors}
-    ${endDateActors}
+        <table>
+          <tbody>
+            <tr></tr>
+            <tr>
+              <td id="start-date-container-actors"></td>
+              <td>${startDateActors}</td>
+            </tr>
+            <tr>
+              <td id="end-date-container-actors"></td>
+              <td>${endDateActors}</td>
+            </tr>
+            <tr></tr>
+          </tbody>
+      </table>
   </div>
 
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2>შვიდი ყველაზე გავრცელებული თემა</h2>
+    <h2 id = "title_topics"></h2>
     <div class="tabs-topics">
       <input type="radio" name="tabset-topics" id="tab-full-data-topics" value="All" checked>
       <label for="tab-full-data-topics">სრული მონაცემები</label>

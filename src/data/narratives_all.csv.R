@@ -4,7 +4,6 @@ library(readxl)
 
 init_data <- read_excel("src/data/dashboard_data.xlsx")
 
-
 narratives_src <- read_excel("src/data/dashboard_data.xlsx", sheet = "ნარატივები") 
 
 # რელევანტური პოსტების სიხშირე
@@ -63,12 +62,11 @@ init_data |>
     narratives_src |> distinct(narrative_id, .keep_all = T), by = "narrative_id"
   ) |> 
   group_by(
-    P_Date, narrative_text, monitoring_group
+    P_Date, narrative_text, narrative_id,  monitoring_group
   ) |>
   count() |> 
   mutate(
-    P_Date = as.Date(P_Date),
-    id = row_number()
+    P_Date = as.Date(P_Date)
   )-> narratives_all
   
 cat(format_csv(narratives_all))
