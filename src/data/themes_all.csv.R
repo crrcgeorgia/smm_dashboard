@@ -139,25 +139,16 @@ init_data |>
     id = row_number()
   ) |> 
   left_join(
-    all_narratives_topics |> select(narrative, topic_text) |> distinct(narrative, .keep_all = T), by = c("narrative_id" = "narrative")
+    all_narratives_topics |> select(narrative, topic_text, topic) |> distinct(narrative, .keep_all = T), by = c("narrative_id" = "narrative")
   ) |> 
   group_by(
-    P_Date, monitoring_group, narrative_text, narrative_id, topic_text
+    P_Date, monitoring_group, narrative_text, narrative_id, topic_text, topic
   ) |> 
   summarize(
     n = sum(n)
+  ) |>
+  rename(
+    "topic_id" = "topic",
   )-> narratives_all_with_topics
-
-narratives_all_with_topics |> 
-  group_by(topic_text) |> 
-  summarize(
-    n_topic = sum(n)
-  ) |> 
-  # select top 5 by n_topic
-  top_n(5, n_topic) |>
-  select(topic_text) |> unname() |> unlist() -> top_5_topics
-
-narratives_all_with_topics |> 
-  filter(topic_text %in% top_5_topics) -> narratives_filtered
 
 cat(format_csv(narratives_all_with_topics))

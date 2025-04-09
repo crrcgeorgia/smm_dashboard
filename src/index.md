@@ -85,13 +85,19 @@ const main_themes = FileAttachment("data/themes_all.csv").csv({ typed: true }).t
   }))
 );
 
-const globalColorScale = d3.scaleOrdinal(d3.schemeTableau10);
+// const globalColorScale = d3.scaleOrdinal(d3.schemeTableau10);
 
+const topicColorScale = d3.scaleOrdinal(d3.schemeTableau10);
+
+// Initialize once with stable IDs
 main_themes.then(data => {
-  const allTopics = Array.from(new Set(data.map(d => d.topic_text)));
-  globalColorScale.domain(allTopics);
+  const allTopicIDs = Array.from(new Set(data.map(d => d.topic_id)));
+  topicColorScale.domain(allTopicIDs);
 });
 
+const toneColorScale = d3.scaleOrdinal()
+  .domain(["positive", "neutral", "negative"])  // fixed internal IDs
+  .range(["#66c2a5", "#fc8d62", "#8da0cb"]);
 
 const translations = FileAttachment("data/translations.json").json().then(data => {
   return data;
@@ -272,6 +278,7 @@ async function renderChart(group,id){
                 y: "x",
                 reverse: true
               },
+              fill: "#a6cee3",
               tip: true
             }
         ),
@@ -292,43 +299,36 @@ async function renderChart(group,id){
 }
 
 async function renderChartActors(group, id) {
-
   const no_data_message = translations[currentLang].no_data;
-
-  const [actorsRaw] = await Promise.all([actors]);
-
   const actorTranslations = translations[currentLang].actors;
-
   const toneTranslations = translations[currentLang].tone;
 
-  const data_actors = actors.filter(d =>
+  const data_actors = (await actors).filter(d =>
     (group === 'All' || d.monitoring_group === group) &&
     d.P_Date >= startDateActors.value && d.P_Date <= endDateActors.value
   );
 
   if (data_actors.length === 0) {
-    document.getElementById(id).innerHTML =
-      `<p>${no_data_message}</p>`;
+    document.getElementById(id).innerHTML = `<p>${no_data_message}</p>`;
     return;
   }
 
-  let dataActorsTranslated = data_actors.map(data_actors => ({
-    ...data_actors,
-    actor_text: actorTranslations?.[data_actors.actor_id] || data_actors.actor_text,
-    tone: toneTranslations?.[data_actors.tone_id] || data_actors.tone
+  let translatedActors = data_actors.map(d => ({
+    actor_text: actorTranslations?.[d.actor_id] || d.actor_text,
+    tone_id: d.tone_id,
+    tone_label: toneTranslations?.[d.tone_id] || d.tone,
+    n: d.n
   }));
 
-  console.log(toneTranslations);
-
   let agg_actors = Object.entries(
-    dataActorsTranslated.reduce((a, { actor_text, tone, n }) => {
-      const key = `${actor_text}||${tone}`;
+    translatedActors.reduce((a, { actor_text, tone_id, tone_label, n }) => {
+      const key = `${actor_text}||${tone_id}||${tone_label}`;
       a[key] = (a[key] || 0) + n;
       return a;
     }, {})
   ).map(([key, n]) => {
-    const [actor_text, tone] = key.split("||");
-    return { actor_text, tone, n };
+    const [actor_text, tone_id, tone_label] = key.split("||");
+    return { actor_text, tone_id, tone_label, n };
   });
 
   let totals = agg_actors.reduce((a, { actor_text, n }) => {
@@ -342,18 +342,19 @@ async function renderChartActors(group, id) {
     .slice(0, 7);
 
   document.getElementById(id).innerHTML = '';
-  document.getElementById(id).appendChild(Plot.plot({
+  
+  const chart = Plot.plot({
     style: { fontFamily: "BPG Arial" },
     color: {
-      domain: agg_actors.map(d => d.tone),
-      range: ["#66c2a5", "#fc8d62", "#8da0cb"],
-      legend: true
+      domain: toneColorScale.domain(),
+      range: toneColorScale.range(),
+      legend: false  // 👈 explicitly disable Plot's built-in legend
     },
     marks: [
       Plot.barX(agg_actors, {
         x: "n",
         y: "actor_text",
-        fill: "tone",
+        fill: "tone_id",
         tip: true
       }),
       Plot.ruleX([0])
@@ -361,67 +362,114 @@ async function renderChartActors(group, id) {
     width: 700,
     height: 400,
     marginLeft: 250,
-      y:{
+    y: {
       label: null,
       tickFormat: d => d.replace(/(.{10}\s)/g, '$1\n')
     },
-    x: { label: "რ-ნობა" }
+    x: { label: translations[currentLang].actor_count_axis_text }
+  });
+
+  // Append chart
+  document.getElementById(id).appendChild(chart);
+
+  // 👈 Rebuild custom legend dynamically
+  const legendContainerId = `${id}-legend`;
+  let legendContainer = document.getElementById(legendContainerId);
+
+  if (!legendContainer) {
+    legendContainer = document.createElement('div');
+    legendContainer.id = legendContainerId;
+    legendContainer.style.marginTop = '10px';
+    document.getElementById(id).appendChild(legendContainer);
+  } else {
+    legendContainer.innerHTML = '';
+  }
+
+  const translatedLegend = toneColorScale.domain().map(id => ({
+    color: toneColorScale(id),
+    label: toneTranslations[id]
   }));
+
+  legendContainer.appendChild(Swatches(d3.scaleOrdinal()
+    .domain(translatedLegend.map(d => d.label))
+    .range(translatedLegend.map(d => d.color))
+  ));
 }
+
+
+
 
 function getActiveTab(tabsSelector) {
   const selectedTab = document.querySelector(`${tabsSelector}:checked`);
   return selectedTab ? selectedTab.value : 'All';
 }
 
-
+console.log(topicColorScale);
 
 async function renderChartTopics(group, id) {
   const themesData = await main_themes;
   const container = document.getElementById(id);
   const legendContainer = document.getElementById('tab-key-topics');
+
   container.innerHTML = '';
+
   legendContainer.innerHTML = '';
 
-  let data_topics = themesData.filter(d =>
-    (group === 'All' || d.monitoring_group === group) &&
-    d.P_Date >= startDateTopics.value &&
-    d.P_Date <= endDateTopics.value
-  );
+  const topicTranslations = translations[currentLang].topics;
+  const narrativeTranslations = translations[currentLang].narratives;
+  const no_data_message = translations[currentLang].no_data;
+
+  let data_topics = themesData
+    .filter(d => 
+      (group === 'All' || d.monitoring_group === group) &&
+      d.P_Date >= startDateTopics.value &&
+      d.P_Date <= endDateTopics.value
+    )
+    .map(d => ({
+      topic_id: d.topic_id,
+      topic_text: topicTranslations[d.topic_text] || d.topic_text,
+      narrative_text: narrativeTranslations[d.narrative_id] || d.narrative_text,
+      n: d.n
+    }));
 
   if (data_topics.length === 0) {
-    container.innerHTML =
-      '<p>დროის ამ მონაკვეთში მოცემული სეგმენტის შესაბამისი მონაცემები არ არსებობს</p>';
+    container.innerHTML = `<p>${no_data_message}</p>`;
     return;
   }
 
   let agg_topics = Object.entries(
-    data_topics.reduce((a, { topic_text, narrative_text, n }) => {
-      const key = `${topic_text}||${narrative_text}`;
+    data_topics.reduce((a, { topic_id, topic_text, narrative_text, n }) => {
+      const key = `${topic_id}||${topic_text}||${narrative_text}`;
       a[key] = (a[key] || 0) + n;
       return a;
     }, {})
   ).map(([key, n]) => {
-    const [topic_text, narrative_text] = key.split("||");
-    return { topic_text, narrative_text, n };
+    const [topic_id, topic_text, narrative_text] = key.split("||");
+    return { topic_id, topic_text, narrative_text, n };
   });
 
   const trmp = Treemap(agg_topics, {
     path: d => d.topic_text,
     value: d => d.n,
-    group: d => d.topic_text,
-    label: d => d.narrative_text.replace(/(.{10}\s)/g, '$1\n') + ". " + d.n.toLocaleString("en") + " შემთხვევა",
+    group: d => d.topic_id, // <-- ensure color is set by stable ID
+    label: d => `${d.narrative_text.replace(/(.{10}\s)/g, '$1\n')}. ${d.n.toLocaleString(currentLang)} ${translations[currentLang].events_count_label}`,
     width: 700,
     height: 500,
-    zDomain: globalColorScale.domain(),   // Stable domain
-    colors: globalColorScale.range()      // Stable colors
+    zDomain: topicColorScale.domain(),
+    colors: topicColorScale.range()
   });
 
   container.appendChild(trmp);
 
-  const key = Swatches(globalColorScale);
-  legendContainer.appendChild(key);
+  // Translate Legend Dynamically (do NOT recreate colors!)
+  const translatedLegendScale = topicColorScale.copy()
+    .domain(topicColorScale.domain().map(id => topicTranslations[id]));
+
+  console.log(translatedLegendScale.range(), translatedLegendScale.domain());
+
+  legendContainer.appendChild(Swatches(translatedLegendScale));
 }
+
 
 renderDailyPostsChart().then(chart => {
   document.getElementById("daily-posts-chart-container").appendChild(chart);
