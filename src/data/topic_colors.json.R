@@ -161,16 +161,15 @@ topic_ids <- narratives_all_with_topics |> distinct(topic_id) |> arrange(topic_i
 num_colors_needed <- nrow(topic_ids)
 
 if (num_colors_needed <= 12) {
-  colors_assigned <- RColorBrewer::brewer.pal(n = num_colors_needed, name = "Set3")
+  colors_assigned <- RColorBrewer::brewer.pal(n = num_colors_needed, name = "Paired")
 } else {
-  colors_assigned <- colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(num_colors_needed)
+  colors_assigned <- colorRampPalette(RColorBrewer::brewer.pal(12, "Paired"))(num_colors_needed)
 }
 
 topic_colors <- topic_ids |> mutate(color = colors_assigned)
 
 narratives_all_with_topics <- narratives_all_with_topics |> 
-  left_join(topic_colors, by = "topic_id") |>
-  arrange(topic_id)
+  left_join(topic_colors, by = "topic_id")
 
 narratives_all_with_topics |>
 group_by(topic_id, topic_text) |>
@@ -180,7 +179,13 @@ group_by(topic_id, topic_text) |>
   ungroup() |>
   top_n(7) -> top_seven
 
+narratives_all_with_topics |>
+  select(topic_id, color) |>
+  distinct() -> colors_to_write
 
-# cat(format_csv(narratives_all_with_topics|>filter(topic_id %in% top_seven$topic_id)))
-
-cat(format_csv(narratives_all_with_topics))
+cat(jsonlite::toJSON(
+    colors_to_write,
+    path = "src/data/topic_colors.json",
+    pretty = TRUE,
+    auto_unbox = TRUE
+))

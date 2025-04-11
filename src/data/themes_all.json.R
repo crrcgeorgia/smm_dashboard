@@ -183,4 +183,9 @@ group_by(topic_id, topic_text) |>
 
 # cat(format_csv(narratives_all_with_topics|>filter(topic_id %in% top_seven$topic_id)))
 
-cat(format_csv(narratives_all_with_topics))
+cat(
+    jsonlite::toJSON(
+        narratives_all_with_topics |> filter(topic_id %in% top_seven$topic_id) |> select(-n) |> distinct() |> arrange(topic_id) |> mutate(color = as.character(color)) |> rename("theme" = "topic_text", "color" = "color") |> select(theme, color) |> distinct() |> arrange(theme), auto_unbox = T, dataframe = "rows"
+    ),
+    file = "src/data/themes_all.json"
+)

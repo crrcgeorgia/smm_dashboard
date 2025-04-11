@@ -11,6 +11,7 @@ events <- readxl::read_excel("src/data/dashboard_data.xlsx", sheet = "მოვ�
 
 translations <- list(
     ka = list(
+        events_count_label = "შემთხვევა",
         narrative_count_axis_text = "შემთხვევების რ-ნობა",
         x_axis_label_daily_posts = "თარიღი",
         y_axis_label_daily_posts = "პოსტების რაოდენობა",
@@ -39,6 +40,7 @@ translations <- list(
         events = setNames(as.list(events$description), events$event_id)
     ),
     en = list(
+        events_count_label = "",
         narrative_count_axis_text = "Number of Occurrences",
         x_axis_label_daily_posts = "Date",
         y_axis_label_daily_posts = "Number of Posts",

@@ -85,16 +85,15 @@ const main_themes = FileAttachment("data/themes_all.csv").csv({ typed: true }).t
   }))
 );
 
-// const globalColorScale = d3.scaleOrdinal(d3.schemeTableau10);
-
-const topicColorScale = d3.scaleOrdinal(d3.schemeTableau10);
-
-// Initialize once with stable IDs
-main_themes.then(data => {
-  const allTopicIDs = Array.from(new Set(data.map(d => d.topic_id)));
-  topicColorScale.domain(allTopicIDs);
+const topic_colors_data = await FileAttachment("data/topic_colors.json").json().then(data => {
+  return data;
 });
 
+
+const topicColorScale = d3.scaleOrdinal()
+  .domain(topic_colors_data.map(d => d.topic_id)) // fixed internal IDs
+  .range(topic_colors_data.map(d => d.color)); // fixed internal IDs
+ 
 const toneColorScale = d3.scaleOrdinal()
   .domain(["positive", "neutral", "negative"])  // fixed internal IDs
   .range(["#66c2a5", "#fc8d62", "#8da0cb"]);
@@ -215,9 +214,9 @@ const endDateActors = Inputs.date({ value: initialEndDate});
 
 const startDateActors = Inputs.date({ value: initialStartDate});
 
-const endDateTopics = Inputs.date({ value: initialEndDate, label: "აარჩიეთ საბოლოო თარიღი" });
+const endDateTopics = Inputs.date({ value: initialEndDate});
 
-const startDateTopics = Inputs.date({ value: initialStartDate, label: "აარჩიეთ საწყისი თარიღი" });
+const startDateTopics = Inputs.date({ value: initialStartDate});
 
 
 const tabs = document.querySelectorAll('.tabs input[type="radio"]');
@@ -404,8 +403,6 @@ function getActiveTab(tabsSelector) {
   return selectedTab ? selectedTab.value : 'All';
 }
 
-console.log(topicColorScale);
-
 async function renderChartTopics(group, id) {
   const themesData = await main_themes;
   const container = document.getElementById(id);
@@ -419,55 +416,99 @@ async function renderChartTopics(group, id) {
   const narrativeTranslations = translations[currentLang].narratives;
   const no_data_message = translations[currentLang].no_data;
 
-  let data_topics = themesData
-    .filter(d => 
-      (group === 'All' || d.monitoring_group === group) &&
-      d.P_Date >= startDateTopics.value &&
-      d.P_Date <= endDateTopics.value
-    )
-    .map(d => ({
-      topic_id: d.topic_id,
-      topic_text: topicTranslations[d.topic_text] || d.topic_text,
-      narrative_text: narrativeTranslations[d.narrative_id] || d.narrative_text,
-      n: d.n
-    }));
+  let data_topics = themesData.filter(d =>
+    (group === 'All' || d.monitoring_group === group) &&
+    d.P_Date >= startDateTopics.value &&
+    d.P_Date <= endDateTopics.value
+  );
 
-  if (data_topics.length === 0) {
-    container.innerHTML = `<p>${no_data_message}</p>`;
+  if(data_topics.length===0){
+    document.getElementById(id).innerHTML =
+      `<p>${no_data_message}</p>`;
     return;
   }
+  
+  let dataTopicsTranslated = data_topics.map(data_topics => ({
+    ...data_topics,
+    narrative_text: narrativeTranslations?.[data_topics.narrative_id] || data_topics.narrative_text
+  }));
 
-  let agg_topics = Object.entries(
-    data_topics.reduce((a, { topic_id, topic_text, narrative_text, n }) => {
-      const key = `${topic_id}||${topic_text}||${narrative_text}`;
-      a[key] = (a[key] || 0) + n;
-      return a;
-    }, {})
-  ).map(([key, n]) => {
-    const [topic_id, topic_text, narrative_text] = key.split("||");
-    return { topic_id, topic_text, narrative_text, n };
-  });
+let nested_topics = Object.values(
+  dataTopicsTranslated.reduce((acc, { topic_id, narrative_id, narrative_text, n }) => {
+    topic_id = +topic_id;
+    narrative_id = +narrative_id;
 
-  const trmp = Treemap(agg_topics, {
-    path: d => d.topic_text,
-    value: d => d.n,
-    group: d => d.topic_id, // <-- ensure color is set by stable ID
-    label: d => `${d.narrative_text.replace(/(.{10}\s)/g, '$1\n')}. ${d.n.toLocaleString(currentLang)} ${translations[currentLang].events_count_label}`,
-    width: 700,
-    height: 500,
-    zDomain: topicColorScale.domain(),
-    colors: topicColorScale.range()
-  });
+    if (!acc[topic_id]) {
+      acc[topic_id] = {
+        name: topic_id,
+        children: []
+      };
+    }
+
+    const existing = acc[topic_id].children.find(d => d.name === narrative_id);
+    if (existing) {
+      existing.value += n;
+    } else {
+      acc[topic_id].children.push({
+        name: narrative_id,
+        description: narrative_text,
+        value: n
+      });
+    }
+
+    return acc;
+  }, {})
+);
+
+const hierarchical_topics = {
+  name: "topic",
+  children: nested_topics  // your current array of topic-level nodes
+};
+
+const trmp = Treemap(hierarchical_topics, {
+  group: (d, n) => n.ancestors().slice(-2)[0].data.name,  // top-level topic_id
+  value: d => d.value,
+  label: (d, n) => `${d.description.replace(/(.{10}\s)/g, '$1\n') || ""}\n${n.value.toLocaleString(currentLang)} ${translations[currentLang].events_count_label}`,
+  width: 700,
+  height: 500,
+  zDomain: topicColorScale.domain(),
+  colors: topicColorScale.range()
+});
+
+  const translatedLegendScale = topicColorScale.domain().map(topicID => ({
+    color: topicColorScale(topicID),
+    label: topicTranslations[topicID]
+  }));
+
+  // 👈 Rebuild custom legend dynamically
+  const legendContainerId1 = `${id}-legend`;
+  let legendContainer1 = document.getElementById(legendContainerId1);
+
+  if (!legendContainer1) {
+    legendContainer1 = document.createElement('div');
+    legendContainer1.id = legendContainerId1;
+    legendContainer1.style.marginTop = '10px';
+    document.getElementById(id).appendChild(legendContainer1);
+  } else {
+    legendContainer1.innerHTML = '';
+  }
+
+  legendContainer1.appendChild(Swatches(d3.scaleOrdinal()
+    .domain(translatedLegendScale.map(d => d.label))
+    .range(translatedLegendScale.map(d => d.color))
+  ));
 
   container.appendChild(trmp);
 
-  // Translate Legend Dynamically (do NOT recreate colors!)
-  const translatedLegendScale = topicColorScale.copy()
-    .domain(topicColorScale.domain().map(id => topicTranslations[id]));
 
-  console.log(translatedLegendScale.range(), translatedLegendScale.domain());
+  // 🟢 Update Treemap text labels manually (after treemap creation):
+  container.querySelectorAll('text').forEach(node => {
+    const originalID = node.textContent;
+    if (topicTranslations[originalID]) {
+      node.textContent = topicTranslations[originalID];
+    }
+  });
 
-  legendContainer.appendChild(Swatches(translatedLegendScale));
 }
 
 
@@ -507,7 +548,7 @@ tabs_topics.forEach(t => t.addEventListener('change', () => {
 [startDateTopics, endDateTopics].forEach(e => e.addEventListener('input', updateChartsTopics));
 
 
-Promise.all([dailyPosts, narratives, actors, main_themes, translations])
+Promise.all([dailyPosts, narratives, actors, main_themes, topic_colors_data, translations])
   .then(() => {
     updateCharts();
     updateChartsActors();
@@ -519,6 +560,8 @@ async function updateTexts() {
   document.getElementById('end-date-container').innerText = translations[currentLang].date_picker_end;
   document.getElementById('start-date-container-actors').innerText = translations[currentLang].date_picker_start;
   document.getElementById('end-date-container-actors').innerText = translations[currentLang].date_picker_end;
+  document.getElementById('start-date-container-topics').innerText = translations[currentLang].date_picker_start;
+  document.getElementById('end-date-container-topics').innerText = translations[currentLang].date_picker_end;
   document.getElementById('title_daily_posts').innerText = translations[currentLang].title_daily_posts;
   document.getElementById('title_narratives').innerText = translations[currentLang].title_narratives;
   document.getElementById('title_actors').innerText = translations[currentLang].title_actors;
@@ -539,11 +582,7 @@ document.querySelectorAll('.tabs-topics label').forEach((el, idx) => {
   el.innerText = translations[currentLang].segments[keys[idx]];
 });
 
-  // startDate.label = translations[currentLang].date_picker_start;
-  
-  // console.log(startDate.label);
 
-  // endDate.label = translations[currentLang].date_picker_end;
   startDateActors.label = translations[currentLang].date_picker_start;
   endDateActors.label = translations[currentLang].date_picker_end;
   startDateTopics.label = translations[currentLang].date_picker_start;
@@ -571,9 +610,6 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
   });
 });
 
-// console.log(title_daily_posts);
-
-// console.log("Language switched to: " + currentLang);
 
 ```
 
@@ -693,8 +729,20 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
       <div class="tab-panel" id="tab4-topics-panel" style="display:none;"><div id="chart-arm-topics"></div></div>
       <div class="tab-panel" id="tab5-topics-panel" style="display:none;"><div id="chart-other-topics"></div></div>
     </div>
-    ${startDateTopics}
-    ${endDateTopics}
+        <table>
+          <tbody>
+            <tr></tr>
+            <tr>
+              <td id="start-date-container-topics"></td>
+              <td>${startDateTopics}</td>
+            </tr>
+            <tr>
+              <td id="end-date-container-topics"></td>
+              <td>${endDateTopics}</td>
+            </tr>
+            <tr></tr>
+          </tbody>
+      </table>
     <div id="tab-key-topics" style="display: flex; flex-direction: column; align-items: center; margin-top: 20px;">
   </div>
 </div>
