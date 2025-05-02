@@ -40,4 +40,4 @@ write_to_excel <- function(data, file_name) {
 
 # Save the data to an Excel file
 
-write_to_excel(data, "dashboard_data.xlsx")
+write_to_excel(data, "src/data/dashboard_data.xlsx")
