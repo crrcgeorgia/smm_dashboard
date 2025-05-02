@@ -49,6 +49,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/latest_data.csv
+          git add dashboard_data.xlsx
           git diff-index --quiet HEAD || git commit -m "Update data from Excel file"
           git push
