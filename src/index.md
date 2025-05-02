@@ -45,10 +45,12 @@ FileAttachment("fonts/bpg-arial-webfont.ttf").url().then(url => {
 ```js
 // Load data
 
+
+
 const dailyPosts = FileAttachment("data/daily_posts_by_group.csv").csv({ typed: true }).then(rows => 
   rows.map(d => ({ 
     ...d, 
-    P_Date: new Date(d.P_Date),
+    P_Date1: new Date(d.P_Date),
     n: +d.n  // ensure numeric type
   }))
 );
@@ -153,6 +155,8 @@ async function renderDailyPostsChart() {
     description: eventTranslations?.[event.event_id] || event.description
   }));   // merge translation events to main_events and then use in the chart
 
+console.log(eventTranslations);
+
   const dailyData = dailyDataRaw.map(dailyData => ({
     ...dailyData,
     monitoring_group: monitoringGroupTranslation?.[dailyData.monitoring_group_id] || dailyData.monitoring_group
@@ -174,12 +178,14 @@ async function renderDailyPostsChart() {
       }),
       Plot.text(events, {
         x: "date",
-        y: () => Math.max(...dailyData.map(d => d.n)) * 1.05,
-        text: "description", // optionally use translated text if available
-        dy: -50,
+        y: () => Math.max(...dailyData.map(d => d.n)) * 1.001,
+        // split the description into lines of 20 characters each, also consider space
+        text: d => d.description.replace(/(.{40}\s)/g, '$1\n').trim(), // split into lines of 20 characters
+        // text: "description", // optionally use translated text if available
+        dy: 20,
         rotate: -90,
         fill: "red",
-        fontSize: 12,
+        fontSize: 6,
         textAnchor: "middle"
       })
     ],
@@ -609,7 +615,6 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
     container.appendChild(chart);
   });
 });
-
 
 ```
 

@@ -7,6 +7,8 @@ actors_src <- read_excel("src/data/dashboard_data.xlsx", sheet = "აქტო�
 
 tbl_names <- names(init_data)
 
+tbl_names <- str_replace_all(tbl_names, "\\s+", "_")
+
 # Remove everything after the first dot
 tbl_names <- gsub("\\..*", "", tbl_names)
 
@@ -16,15 +18,14 @@ init_data |>
     monitoring_group = case_when(
       PG_name %in% c("ახალი ამბები განსჯისთვის", "Javakhk") ~ "სომხურენოვანი სეგმენტი",
       PG_name %in% c("Aktual.ge", "24News.ge") ~ "აზერბაიჯანულენოვანი სეგმენტი",
-      PG_name %in% c("ბიძინა ივანიშვილის მხარდამჭერი ჯგუფი აჭარაში", "აჭარა გვერდი") ~ "აჭარის სეგმენტი",
-      PG_name %in% c("ახალი ამბები", "აჭარა გვერდი") ~ "აჭარის სეგმენტი",
-      TRUE ~ "ქართულენოვანი სეგმენტი (აჭარის გარდა)"
+      PG_name %in% c("გაზეთი აჭარა", "ბიძინა ივანიშვილის მხარდამჭერი ჯგუფი აჭარაში") ~ "აჭარის სეგმენტი",
+      T ~ "ქართულენოვანი სეგმენტი (აჭარის გარდა)"
     ),
     across(
       starts_with("Actor"),
       ~ as.character(.)
     )
-  ) |> 
+  ) |>
   select(P_Date, monitoring_group, Actor1, Actor1_tone, Actor2, Actor2_tone, Actor3, Actor3_tone) -> actor_data
 
 bind_rows(
@@ -32,16 +33,12 @@ bind_rows(
   actor_data |> transmute(P_Date, monitoring_group, actor_id = Actor2, tone = Actor2_tone),
   actor_data |> transmute(P_Date, monitoring_group, actor_id = Actor3, tone = Actor3_tone)
 ) |>
-  mutate(
-    actor_id = case_when(
-      actor_id == "პარლამენტი" ~ 10,
-      actor_id == "ქართული ოცნების მომხრეები" ~ 15, # გასასწორებელია
-      T ~ as.double(actor_id)
-    )
-  ) |> 
   filter(!is.na(actor_id)) |> 
   group_by(actor_id, monitoring_group, tone, P_Date) |> 
   count() |>
+  mutate(
+    actor_id = as.numeric(actor_id)
+  ) |>
   left_join(
     actors_src, by = "actor_id"
   ) |> 

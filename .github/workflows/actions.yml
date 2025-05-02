@@ -39,7 +39,12 @@ jobs:
         packages: |
           any::readxl 
           any::tidyverse
-
+          any::openxlsx
+          any::googlesheets4
+      - name: Run R script
+        run: |
+          Rscript src/data/download_data.R
+        
     - uses: actions/setup-node@v4
       with:
         node-version: 20
