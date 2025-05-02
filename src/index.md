@@ -50,7 +50,7 @@ FileAttachment("fonts/bpg-arial-webfont.ttf").url().then(url => {
 const dailyPosts = FileAttachment("data/daily_posts_by_group.csv").csv({ typed: true }).then(rows => 
   rows.map(d => ({ 
     ...d, 
-    P_Date1: new Date(d.P_Date),
+    P_Date: new Date(d.P_Date),
     n: +d.n  // ensure numeric type
   }))
 );

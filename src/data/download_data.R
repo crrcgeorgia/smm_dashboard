@@ -24,6 +24,7 @@ data <- map(sheets, ~ get_sheet_data(url, .x), .id = "sheet_name")
 
 names(data) <- sheets
 
+
 # Write to the disk an excel file, with list items as separate sheets
 
 write_to_excel <- function(data, file_name) {
