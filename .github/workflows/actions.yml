@@ -45,10 +45,10 @@ jobs:
       - name: Import data
         run: Rscript src/data/download_data.R
         
-      - name: Commit results
+      - name: Commit and push downloaded data
         run: |
-          git config --local user.email "actions@github.com"
-          git config --local user.name "GitHub Actions"
-          git add 'dashboard_data.xlsx'
-          git commit -m 'Data updated' || echo "No changes to commit"
-          git push origin || echo "No changes to commit"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/latest_data.csv
+          git diff-index --quiet HEAD || git commit -m "Update data from Excel file"
+          git push
