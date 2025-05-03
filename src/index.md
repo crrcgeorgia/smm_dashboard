@@ -572,6 +572,11 @@ async function updateTexts() {
   document.getElementById('title_narratives').innerText = translations[currentLang].title_narratives;
   document.getElementById('title_actors').innerText = translations[currentLang].title_actors;
   document.getElementById('title_topics').innerText = translations[currentLang].title_topics;
+  document.getElementById('smallnote').innerText = translations[currentLang].smallnote;
+  document.getElementById('tooltip_narrative').innerText = translations[currentLang].tooltip_narrative;
+  document.getElementById('tooltip_n_posts').innerText = translations[currentLang].tooltip_n_posts;
+  document.getElementById('tooltip_actors').innerText = translations[currentLang].tooltip_actors;
+  document.getElementById('tooltip_topics').innerText = translations[currentLang].tooltip_topics;
 
   document.querySelectorAll('.tabs label').forEach((el, idx) => {
     const keys = ['all', 'az', 'adjara', 'arm', 'other'];
@@ -626,7 +631,10 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
 <div class="grid grid-cols-4">
   
   <div class="card grid-colspan-2 grid-rowspan-1">
+  <div class="tooltip-container">
     <h2 id="title_daily_posts"></h2>
+    <span class="tooltip-text" id = "tooltip_n_posts"></span>
+  </div>
     <figure style="max-width: none;">
       <div style="display: flex; flex-direction: column; align-items: center;">
         <div style="display: flex; align-items: center;">
@@ -637,12 +645,15 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
   </div>
 
   <div class="card grid-colspan-2">
-    <h2 id = "title_narratives"></h2>
+  <div class="tooltip-container">
+    <h2 id="title_narratives"></h2>
+    <span class="tooltip-text" id = "tooltip_narrative"></span>
+  </div>
         <div class="tabs">
           <input type="radio" name="tabset-narratives" id="tab-full-data" value="All" checked>
           <label for="tab-full-data">სრული მონაცემები</label>
           <input type="radio" name="tabset-narratives" id="tab2" value="აზერბაიჯანულენოვანი სეგმენტი">
-          <label for="tab2">azerbaijanulenovani სეგმენტი</label>
+          <label for="tab2">აზერბაიჯანულენოვანი სეგმენტი</label>
           <input type="radio" name="tabset-narratives" id="tab3" value="აჭარის სეგმენტი">
           <label for="tab3">აჭარის სეგმენტი</label>
           <input type="radio" name="tabset-narratives" id="tab4" value="სომხურენოვანი სეგმენტი">
@@ -677,7 +688,10 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
 
 <div class="grid grid-cols-4">
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2 id = "title_actors"></h2>
+   <div class="tooltip-container">
+    <h2 id="title_actors"></h2>
+    <span class="tooltip-text" id = "tooltip_actors"></span>
+  </div>
     <div class="tabs-actors">
       <input type="radio" name="tabset-actors" id="tab-full-data-actors" value="All" checked>
       <label for="tab-full-data-actors">სრული მონაცემები</label>
@@ -714,7 +728,10 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
   </div>
 
   <div class="card grid-colspan-2 grid-rowspan-1">
-    <h2 id = "title_topics"></h2>
+    <div class="tooltip-container">
+    <h2 id="title_topics"></h2>
+    <span class="tooltip-text" id = "tooltip_topics"></span>
+  </div>
     <div class="tabs-topics">
       <input type="radio" name="tabset-topics" id="tab-full-data-topics" value="All" checked>
       <label for="tab-full-data-topics">სრული მონაცემები</label>
@@ -751,5 +768,6 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
     <div id="tab-key-topics" style="display: flex; flex-direction: column; align-items: center; margin-top: 20px;">
   </div>
 </div>
-
 </div>
+
+<div id="smallnote"></div>
