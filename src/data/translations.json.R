@@ -50,7 +50,8 @@ translations <- list(
         tooltip_narrative = "დიაგრამაზე მოცემულია პოსტების რაოდენობა. ნარატივების ფორმულირება ჩამოყალიბებულია პოსტის შინაარსზე დაყრდნობით.",
         tooltip_n_posts = "პოსტების რაოდენობა, რომლებიც პირველადი ანალიზის შედეგად რელევანტურად ჩაითვალა. რელევანტურია ისეთი პოსტი, რომელიც ავითარებს ანტიდასავლურ ან პრორუსულ დისკურსს, ეხება დასავლეთს ან პროდასავლურ პროტესტს.",
         tooltip_actors = "დიაგრამაზე მოცემულია პოსტების რაოდენობა. სამბალიან სკალაზე (დადებითი, ნეიტრალური, უარყოფითი) შეფასებულია აქტორების წარმოჩენა პოსტში.",
-        tooltip_topics = "დიაგრამა აჯამებს პოსტების თემატიკას და წარმოაჩენს ყველაზე გავრცელებულ თემებს (აღნიშნულია ფერით) და ამ თემაზე არსებულ ნარატივებს (თითოეული ფერის ოთხკუთხედში მოცემული ტექსტი)"
+        tooltip_topics = "დიაგრამა აჯამებს პოსტების თემატიკას და წარმოაჩენს ყველაზე გავრცელებულ თემებს (აღნიშნულია ფერით) და ამ თემაზე არსებულ ნარატივებს (თითოეული ფერის ოთხკუთხედში მოცემული ტექსტი)",
+        dash_title = "„ფეისბუქის“ ქსელში გავრცელებული ანტიდასავლური ნარატივების კვლევა"
     ),
     en = list(
         events_count_label = "",
@@ -91,8 +92,8 @@ Data is being collected from posts published on the selected pages and groups af
         tooltip_narrative = "The diagram shows the number of posts. The narratives are formulated based on the content of the posts.",
         tooltip_n_posts = "The number of posts identified as relevant based on preliminary analysis. A post is considered relevant if it promotes an anti-Western or pro-Russian discourse, refers to the West, or addresses pro-Western protests.",
         tooltip_actors = "The diagram shows the number of posts. Each actor's portrayal in the post is evaluated on a three-point scale (positive, neutral, negative).",
-        tooltip_topics = "The diagram summarizes the topics of the posts and highlights the most common ones (indicated by color), along with the narratives associated with each topic (the text inside each colored rectangle)."
-
+        tooltip_topics = "The diagram summarizes the topics of the posts and highlights the most common ones (indicated by color), along with the narratives associated with each topic (the text inside each colored rectangle).",
+        dash_title = "Investigating Anti-Western Narratives on Facebook"
 
     )
 )

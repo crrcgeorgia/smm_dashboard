@@ -163,7 +163,7 @@ num_colors_needed <- nrow(topic_ids)
 if (num_colors_needed <= 12) {
   colors_assigned <- RColorBrewer::brewer.pal(n = num_colors_needed, name = "Paired")
 } else {
-  colors_assigned <- colorRampPalette(RColorBrewer::brewer.pal(12, "Paired"))(num_colors_needed)
+  colors_assigned <- colorRampPalette(RColorBrewer::brewer.pal(8, "Paired"))(num_colors_needed)
 }
 
 topic_colors <- topic_ids |> mutate(color = colors_assigned)
@@ -171,13 +171,13 @@ topic_colors <- topic_ids |> mutate(color = colors_assigned)
 narratives_all_with_topics <- narratives_all_with_topics |> 
   left_join(topic_colors, by = "topic_id")
 
-narratives_all_with_topics |>
-group_by(topic_id, topic_text) |>
-  summarize(
-    n = sum(n)
-  ) |>
-  ungroup() |>
-  top_n(7) -> top_seven
+# narratives_all_with_topics |>
+# group_by(topic_id, topic_text) |>
+#   summarize(
+#     n = sum(n)
+#   ) |>
+#   ungroup() |>
+#   top_n(7) -> top_seven
 
 narratives_all_with_topics |>
   select(topic_id, color) |>

@@ -155,8 +155,6 @@ async function renderDailyPostsChart() {
     description: eventTranslations?.[event.event_id] || event.description
   }));   // merge translation events to main_events and then use in the chart
 
-console.log(eventTranslations);
-
   const dailyData = dailyDataRaw.map(dailyData => ({
     ...dailyData,
     monitoring_group: monitoringGroupTranslation?.[dailyData.monitoring_group_id] || dailyData.monitoring_group
@@ -439,10 +437,26 @@ async function renderChartTopics(group, id) {
     narrative_text: narrativeTranslations?.[data_topics.narrative_id] || data_topics.narrative_text
   }));
 
+// 1. Aggregate total value per topic_id
+const topicTotals = dataTopicsTranslated.reduce((acc, { topic_id, n }) => {
+  topic_id = +topic_id;
+  acc[topic_id] = (acc[topic_id] || 0) + n;
+  return acc;
+}, {});
+
+// 2. Get top 7 topic_ids by total value
+const topTopicIDs = Object.entries(topicTotals)
+  .sort(([, a], [, b]) => b - a)
+  .slice(0, 7)
+  .map(([id]) => +id); // Ensure numeric topic_id
+
+// 3. Filter data and nest only top topics
 let nested_topics = Object.values(
   dataTopicsTranslated.reduce((acc, { topic_id, narrative_id, narrative_text, n }) => {
     topic_id = +topic_id;
     narrative_id = +narrative_id;
+
+    if (!topTopicIDs.includes(topic_id)) return acc;
 
     if (!acc[topic_id]) {
       acc[topic_id] = {
@@ -481,10 +495,21 @@ const trmp = Treemap(hierarchical_topics, {
   colors: topicColorScale.range()
 });
 
-  const translatedLegendScale = topicColorScale.domain().map(topicID => ({
+  console.log(topicColorScale.domain());
+
+
+  // filter topicColorScale using nested topic ids
+  const filteredTopicColorScale = d3.scaleOrdinal()
+    .domain(topicColorScale.domain().filter(topicID => topTopicIDs.includes(+topicID))) // filter to only include top topic IDs
+    .range(topicColorScale.range().filter((_, i) => topTopicIDs.includes(+topicColorScale.domain()[i]))); // filter to match the same order
+  
+  console.log(filteredTopicColorScale.domain());
+
+  const translatedLegendScale = filteredTopicColorScale.domain().map(topicID => ({
     color: topicColorScale(topicID),
     label: topicTranslations[topicID]
   }));
+
 
   // 👈 Rebuild custom legend dynamically
   const legendContainerId1 = `${id}-legend`;
@@ -499,10 +524,11 @@ const trmp = Treemap(hierarchical_topics, {
     legendContainer1.innerHTML = '';
   }
 
-  legendContainer1.appendChild(Swatches(d3.scaleOrdinal()
-    .domain(translatedLegendScale.map(d => d.label))
-    .range(translatedLegendScale.map(d => d.color))
-  ));
+
+legendContainer1.appendChild(Swatches(d3.scaleOrdinal()
+  .domain(translatedLegendScale.map(d => d.label))
+  .range(translatedLegendScale.map(d => d.color))
+));
 
   container.appendChild(trmp);
 
@@ -577,6 +603,7 @@ async function updateTexts() {
   document.getElementById('tooltip_n_posts').innerText = translations[currentLang].tooltip_n_posts;
   document.getElementById('tooltip_actors').innerText = translations[currentLang].tooltip_actors;
   document.getElementById('tooltip_topics').innerText = translations[currentLang].tooltip_topics;
+  document.getElementById('dash_title').innerText = translations[currentLang].dash_title;
 
   document.querySelectorAll('.tabs label').forEach((el, idx) => {
     const keys = ['all', 'az', 'adjara', 'arm', 'other'];
@@ -627,6 +654,8 @@ document.getElementById("languageSwitcher").addEventListener('change', (e) => {
   <option value="ka">ქართული</option>
   <option value="en">English</option>
 </select>
+
+<div id = "dash_title"></div>
 
 <div class="grid grid-cols-4">
   
