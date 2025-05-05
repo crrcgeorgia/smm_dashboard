@@ -44,7 +44,7 @@ export default {
   theme: "light",
   // theme: "default", // try "light", "dark", "slate", etc.
   // header: "", // what to show in the header (HTML)
-  footer: "CRRC საქართველო და SIDA.", // what to show in the footer (HTML)
+  footer: "CRRC საქართველო.", // what to show in the footer (HTML)
   sidebar: false, // whether to show the sidebar
   // toc: true, // whether to show the table of contents
   pager: false, // whether to show previous & next links in the footer
