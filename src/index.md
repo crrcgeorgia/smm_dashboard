@@ -104,6 +104,10 @@ const toneColorScale = d3.scaleOrdinal()
   .domain(["positive","neutral","negative"])
   .range(["#66c2a5","#fc8d62","#8da0cb"]);
 
+const groupColorScale = d3.scaleOrdinal()
+  .domain(["positive","neutral","negative"])
+  .range(["#66c2a5","#fc8d62","#8da0cb"]);
+
 const topicColorScale = d3.scaleOrdinal()
   .domain(topic_colors_data.map(d => d.topic_id))
   .range(topic_colors_data.map(d => d.color));
@@ -313,10 +317,14 @@ async function renderChartActors(group, containerId) {
 
   // Pick top 7 actors by total n (across tones)
   const totals = agg.reduce((a, d) => ((a[d.actor_text] = (a[d.actor_text] || 0) + d.n), a), {});
-  agg = agg
-    .filter(d => totals[d.actor_text] > 0)
-    .sort((a, b) => totals[b.actor_text] - totals[a.actor_text])
-    .slice(0, 7);
+  const topActors = Object.entries(totals)
+  .sort(([, a], [, b]) => b - a) // Sort by total descending
+  .slice(0, 7)                   // Keep top 7
+  .map(([actor]) => actor);      // Extract actor names
+
+// Filter agg to only include top 7
+agg = agg.filter(d => topActors.includes(d.actor_text))
+    .sort((a, b) => totals[b.actor_text] - totals[a.actor_text]);
 
   el.innerHTML = "";
   const chart = Plot.plot({
@@ -332,6 +340,7 @@ async function renderChartActors(group, containerId) {
         y: "actor_text",
         fill: "tone_id",                 // use stable internal ID for color
         tip: true,
+        sort: {y: "-x"},
         title: d => [
           `${t("actors_tooltip_actor","Actor")}: ${d.actor_text}`,
           `${t("actors_tooltip_tone","Tone")}: ${d.tone_label}`,
