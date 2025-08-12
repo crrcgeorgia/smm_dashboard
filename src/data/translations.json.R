@@ -11,11 +11,17 @@ events <- readxl::read_excel("src/data/dashboard_data.xlsx", sheet = "მოვ�
 
 translations <- list(
     ka = list(
+        daily_tooltip_date = "თარიღი",
+        daily_tooltip_posts = "პოსტების რ-ნობა",
+        daily_tooltip_mongroup = "მონიტორინგის ჯგუფი ",
         events_count_label = "შემთხვევა",
         narrative_count_axis_text = "შემთხვევების რ-ნობა",
+        topic_name = "ნარატივი",
         x_axis_label_daily_posts = "თარიღი",
-        y_axis_label_daily_posts = "პოსტების რაოდენობა",
-        title_daily_posts = "რელევანტური პოსტების რაოდენობა თარიღის მიხედვით",
+        y_axis_label_daily_posts = "პოსტების რ-ნობა",
+        actors_tooltip_actor = "აქტორი",
+        actors_tooltip_tone = "ტონი",
+        title_daily_posts = "რელევანტური პოსტების რ-ნობა თარიღის მიხედვით",
         title_narratives  = "ყველაზე გავრცელებული ანტიდასავლური ნარატივი",
         title_actors      = "ყველაზე ხშირად ნახსენები აქტორი",
         title_topics      = "ყველაზე გავრცელებული თემა",
@@ -54,8 +60,14 @@ translations <- list(
         dash_title = "„ფეისბუქის“ ქსელში გავრცელებული ანტიდასავლური ნარატივების კვლევა"
     ),
     en = list(
+        daily_tooltip_date = "Date",
+        daily_tooltip_posts = "Number of posts",
+        daily_tooltip_mongroup = "Monitoring group ",
         events_count_label = "",
         narrative_count_axis_text = "Number of Occurrences",
+        topic_name = "Narrative",
+        actors_tooltip_actor = "Actor",
+        actors_tooltip_tone = "Tone",
         x_axis_label_daily_posts = "Date",
         y_axis_label_daily_posts = "Number of Posts",
         title_daily_posts = "Relevant Posts by Date",

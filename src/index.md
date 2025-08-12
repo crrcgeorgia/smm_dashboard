@@ -159,7 +159,8 @@ const {start: startDateTopics, end: endDateTopics} = await makeRange(-1);
 async function renderDailyPostsChart() {
   const [dailyDataRaw, rawEvents] = await Promise.all([dailyPosts, main_events]);
   const locale = getLocale();
-
+  const fmtMonth = locale.format("%b");
+  const fmtFull  = locale.format("%d %B %Y"); // e.g., 31 January 2025
   // translations
   const evTr = t("events", {});
   const segTr = t("segments", {});
@@ -178,8 +179,10 @@ async function renderDailyPostsChart() {
     .filter(ev => ev.date >= s && ev.date <= e);
 
   const ymax = Math.max(1, ...dailyData.map(d => d.n));
-
-  return Plot.plot({
+  const xMin = d3.utcDay.floor(d3.min(dailyData, d => d.P_Date));
+  const xMax = d3.utcDay.offset(d3.utcDay.ceil(d3.max(dailyData, d => d.P_Date)), 1); // include last day
+ 
+ return Plot.plot({
     style: { fontFamily: "BPG Arial" },
     color: {
       domain: Array.from(new Set(dailyData.map(d => d.monitoring_group))),
@@ -188,18 +191,31 @@ async function renderDailyPostsChart() {
     },
     marks: [
       // daily columns, time scale
-      Plot.rectY(dailyData, { x: "P_Date", interval: d3.timeDay, y: "n", fill: "monitoring_group", tip: true }),
+      Plot.rectY(dailyData, {
+         x: "P_Date",
+         interval: d3.timeDay,
+         y: "n",
+         fill: "monitoring_group",
+         tip: true,
+         title: d => [
+          `${translations[currentLang].daily_tooltip_mongroup}: ${d.monitoring_group}`,
+          `${translations[currentLang].daily_tooltip_date}: ${fmtFull(d.P_Date)}`,
+          `${translations[currentLang].daily_tooltip_posts}: ${d.n}`
+        ].join("\n")
+      }),
 
-      // top monthly labels
-      Plot.axisX({ anchor: "top", ticks: d3.timeMonth.every(1), tickFormat: locale.format("%b") }),
+      // bottom monthly labels
+      Plot.axisX({ anchor: "bottom", ticks: d3.timeMonth.every(1), tickFormat: locale.format("%b") }),
 
+      Plot.ruleX(d3.utcMonday.range(xMin, xMax), {strokeOpacity: 0.08}),
+      
       // event labels
       Plot.text(events, {
         x: "date",
         y: ymax * 1.02,
         text: d => d.description.replace(/(.{40}\s)/g, "$1\n").trim(),
         dy: 20, rotate: -90, fill: "red", fontSize: 6, textAnchor: "middle"
-      })
+      }),
     ],
     x: {
       type: "time",
@@ -207,7 +223,7 @@ async function renderDailyPostsChart() {
       tickFormat: locale.format("%d %b"),
       tickRotate: -90
     },
-    y: { label: t("y_axis_label_daily_posts","პოსტების რ-ნობა: ") }
+    y: { label: t("y_axis_label_daily_posts","პოსტების რ-ნობა: ") },
   });
 }
 
@@ -235,11 +251,21 @@ async function renderChartNarratives(group, containerId) {
   el.appendChild(Plot.plot({
     style: { fontFamily: "BPG Arial" },
     marks: [
-      Plot.barX(agg, { x: d=>d[1], y: d=>d[0], sort: { y:"x", reverse:true }, fill: "#a6cee3", tip: true }),
+      Plot.barX(agg, {
+        x: d=>d[1],
+        y: d=>d[0],
+        sort: { y:"x", reverse:true },
+        fill: "#a6cee3",
+        tip: true,
+        title: d => [
+          `${t("narrative_tooltip_label", translations[currentLang].topic_name)}: ${d[0]}`,
+          `${t("narrative_count_axis_text")}: ${d[1]}`
+        ].join("\n")
+      }),
       Plot.ruleX([0])
     ],
     width: 700, height: 400, marginLeft: 150,
-    x: { label: t("narrative_count_axis_text","შემთხვევების რ-ნობა: ") },
+    x: { label: t("narrative_count_axis_text","შემთხვევების რ-ნობა ") },
     y: { label: null, tickFormat: d => d.replace(/(.{10}\s)/g, "$1\n") }
   }));
 }
@@ -258,53 +284,87 @@ async function renderChartActors(group, containerId) {
     return;
   }
 
-  const aTr = t("actors",{}), toneTr = t("tone",{});
+  const aTr = t("actors", {});     // {actor_id: translated name}
+  const toneTr = t("tone", {});    // {tone_id: translated label}
+
+  // Translate once and keep named fields
   const rows = data.map(d => ({
+    actor_id: d.actor_id,
     actor_text: aTr?.[d.actor_id] ?? d.actor_text,
-    tone_id: d.tone_id, tone_label: toneTr?.[d.tone_id] ?? d.tone, n: d.n
+    tone_id: d.tone_id,
+    tone_label: toneTr?.[d.tone_id] ?? d.tone,
+    n: d.n
   }));
 
-  let agg = Object.entries(
-    rows.reduce((acc,{actor_text,tone_id,tone_label,n})=>{
-      const key = `${actor_text}||${tone_id}||${tone_label}`;
-      acc[key] = (acc[key]||0)+n; return acc;
+  // Aggregate into objects so tooltips can reference fields
+  let agg = Object.values(
+    rows.reduce((acc, d) => {
+      const key = `${d.actor_text}||${d.tone_id}`; // tone_label implied by tone_id
+      if (!acc[key]) acc[key] = {
+        actor_text: d.actor_text,
+        tone_id: d.tone_id,
+        tone_label: d.tone_label,
+        n: 0
+      };
+      acc[key].n += d.n;
+      return acc;
     }, {})
-  ).map(([key,n]) => {
-    const [actor_text,tone_id,tone_label] = key.split("||");
-    return { actor_text, tone_id, tone_label, n };
-  });
+  );
 
-  const totals = agg.reduce((a,{actor_text,n}) => (a[actor_text]=(a[actor_text]||0)+n, a), {});
-  agg = agg.filter(d => totals[d.actor_text] > 0)
-           .sort((a,b)=>totals[b.actor_text]-totals[a.actor_text])
-           .slice(0,7);
+  // Pick top 7 actors by total n (across tones)
+  const totals = agg.reduce((a, d) => ((a[d.actor_text] = (a[d.actor_text] || 0) + d.n), a), {});
+  agg = agg
+    .filter(d => totals[d.actor_text] > 0)
+    .sort((a, b) => totals[b.actor_text] - totals[a.actor_text])
+    .slice(0, 7);
 
   el.innerHTML = "";
   const chart = Plot.plot({
     style: { fontFamily: "BPG Arial" },
-    color: { domain: toneColorScale.domain(), range: toneColorScale.range(), legend: false },
-    marks: [ Plot.barX(agg, { x:"n", y:"actor_text", fill:"tone_id", tip:true }), Plot.ruleX([0]) ],
-    width: 700, height: 400, marginLeft: 250,
-    y: { label: null, tickFormat: d => d.replace(/(.{10}\s)/g, "$1\n") },
+    color: {
+      domain: toneColorScale.domain(),   // ["positive","neutral","negative"]
+      range: toneColorScale.range(),     // fixed colors
+      legend: false
+    },
+    marks: [
+      Plot.barX(agg, {
+        x: "n",
+        y: "actor_text",
+        fill: "tone_id",                 // use stable internal ID for color
+        tip: true,
+        title: d => [
+          `${t("actors_tooltip_actor","Actor")}: ${d.actor_text}`,
+          `${t("actors_tooltip_tone","Tone")}: ${d.tone_label}`,
+          `${t("daily_tooltip_posts","Posts")}: ${d.n.toLocaleString(currentLang)}`
+        ].join("\n")
+      }),
+      Plot.ruleX([0])
+    ],
+    width: 700,
+    height: 400,
+    marginLeft: 250,
+    y: { label: null, tickFormat: s => s.replace(/(.{10}\s)/g, "$1\n") },
     x: { label: t("actor_count_axis_text") }
   });
   el.appendChild(chart);
 
-  // Legend (translated labels, stable colors)
+  // Custom legend with translated tone labels (colors from toneColorScale)
   const legendId = `${containerId}-legend`;
-  if (!document.getElementById(legendId)) {
-    const div = document.createElement("div");
-    div.id = legendId;
-    div.style.marginTop = "10px";
-    el.appendChild(div);
+  let legend = document.getElementById(legendId);
+  if (!legend) {
+    legend = document.createElement("div");
+    legend.id = legendId;
+    legend.style.marginTop = "10px";
+    el.appendChild(legend);
+  } else {
+    legend.innerHTML = "";
   }
-  const legendDomain = toneColorScale.domain();
-  mountLegend(
-    legendId,
-    legendDomain,
-    id => toneTr[id],
-    id => toneColorScale(id)
-  );
+
+  const legendScale = d3.scaleOrdinal()
+    .domain(toneColorScale.domain().map(id => toneTr?.[id] ?? id)) // translated labels
+    .range(toneColorScale.domain().map(id => toneColorScale(id)));  // stable colors
+
+  legend.appendChild(Swatches(legendScale));
 }
 
 // Topics (Treemap of top 7 topics, stable color by topic_id, translated legend)
