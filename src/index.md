@@ -164,19 +164,14 @@ async function renderDailyPostsChart() {
   const [dailyDataRaw, rawEvents] = await Promise.all([dailyPosts, main_events]);
   const locale = getLocale();
   const fmtMonth = locale.format("%b");
-  const fmtFull  = locale.format("%d %B %Y"); // e.g., 31 January 2025
-  // translations
-  const evTr = t("events", {});
-  const segTr = t("segments", {});
+  const fmtFull  = locale.format("%d %B %Y");
 
+  const evTr = t("events", {}), segTr = t("segments", {});
   const s = startDateDaily.value, e = endDateDaily.value;
 
   const dailyData = dailyDataRaw
     .filter(d => d.P_Date >= s && d.P_Date <= e)
-    .map(d => ({
-      ...d,
-      monitoring_group: segTr?.[d.monitoring_group_id] ?? d.monitoring_group
-    }));
+    .map(d => ({ ...d, monitoring_group: segTr?.[d.monitoring_group_id] ?? d.monitoring_group }));
 
   const events = rawEvents
     .map(ev => ({...ev, description: evTr?.[ev.event_id] ?? ev.description}))
@@ -184,42 +179,50 @@ async function renderDailyPostsChart() {
 
   const ymax = Math.max(1, ...dailyData.map(d => d.n));
   const xMin = d3.utcDay.floor(d3.min(dailyData, d => d.P_Date));
-  const xMax = d3.utcDay.offset(d3.utcDay.ceil(d3.max(dailyData, d => d.P_Date)), 1); // include last day
- 
- return Plot.plot({
+  const xMax = d3.utcDay.offset(d3.utcDay.ceil(d3.max(dailyData, d => d.P_Date)), 1);
+
+  return Plot.plot({
     style: { fontFamily: "BPG Arial" },
+    marginTop: 70, // more space for labels
     color: {
       domain: Array.from(new Set(dailyData.map(d => d.monitoring_group))),
       range: ["#ffffb3","#bc80bd","#b3de69","#80b1d3"],
       legend: true
     },
     marks: [
-      // daily columns, time scale
+      // daily columns
       Plot.rectY(dailyData, {
-         x: "P_Date",
-         interval: d3.timeDay,
-         y: "n",
-         fill: "monitoring_group",
-         tip: true,
-         title: d => [
-          `${translations[currentLang].daily_tooltip_mongroup}: ${d.monitoring_group}`,
-          `${translations[currentLang].daily_tooltip_date}: ${fmtFull(d.P_Date)}`,
-          `${translations[currentLang].daily_tooltip_posts}: ${d.n}`
+        x: "P_Date",
+        interval: d3.timeDay,
+        y: "n",
+        fill: "monitoring_group",
+        tip: true,
+        title: d => [
+          `${t("daily_tooltip_mongroup")}: ${d.monitoring_group}`,
+          `${t("daily_tooltip_date")}: ${fmtFull(d.P_Date)}`,
+          `${t("daily_tooltip_posts")}: ${d.n}`
         ].join("\n")
       }),
 
-      // bottom monthly labels
-      Plot.axisX({ anchor: "bottom", ticks: d3.timeMonth.every(1), tickFormat: locale.format("%b") }),
+      // month labels at bottom
+      Plot.axisX({ anchor: "bottom", ticks: d3.timeMonth.every(1), tickFormat: fmtMonth }),
 
-      Plot.ruleX(d3.utcMonday.range(xMin, xMax), {strokeOpacity: 0.08}),
-      
-      // event labels
-      Plot.text(events, {
-        x: "date",
-        y: ymax * 1.02,
-        text: d => d.description.replace(/(.{40}\s)/g, "$1\n").trim(),
-        dy: 20, rotate: -90, fill: "red", fontSize: 6, textAnchor: "middle"
-      }),
+      // weekly grid
+      Plot.ruleX(d3.utcMonday.range(xMin, xMax), { strokeOpacity: 0.08 }),
+
+      // connector hairlines (optional but helpful)
+      Plot.ruleX(events, { x: "date", y1: ymax * 1.0, y2: ymax * 1.06, stroke: "red", strokeOpacity: 0.35 }),
+
+      // event labels with halo + stagger to reduce collisions
+       Plot.dot(events, {
+         x: "date",
+         y: () => ymax * 2.04,
+         r: 3.5,
+         fill: "red",
+         tip: true,
+         title: d => d.description
+       }),
+    Plot.ruleX(events, { x: "date", y1: 0, y2: ymax * 2.04, stroke: "red", strokeOpacity: 0.3 })
     ],
     x: {
       type: "time",
@@ -227,9 +230,10 @@ async function renderDailyPostsChart() {
       tickFormat: locale.format("%d %b"),
       tickRotate: -90
     },
-    y: { label: t("y_axis_label_daily_posts","პოსტების რ-ნობა: ") },
+    y: { label: t("y_axis_label_daily_posts","პოსტების რ-ნობა: ") }
   });
 }
+
 
 // Narratives (bar chart, top 7)
 async function renderChartNarratives(group, containerId) {
