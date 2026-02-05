@@ -50,7 +50,7 @@ translations <- list(
 
 შერჩეულ 16 საჯარო გვერდს/ჯგუფს შორისაა ორი აზერბაიჯანულენოვანი გვერდი, ერთი სომხურენოვანი გვერდი და ერთი სომხურენოვანი ჯგუფი, ასევე, თითო გვერდი და ჯგუფი, რომელიც აჭარის რეგიონზეა ფოკუსირებული. აღსანიშნავია, რომ აჭარის გვერდისა და აზერბაიჯანულენოვანი გვერდების შემთხვევაში ანტიდასავლური შინაარსის პოსტები შედარებით იშვიათია და გვხვდება მაშინ, როცა ამ თემაზე რაიმე ახალი ამბავია გაშუქებული.
 
-შერჩეულ გვერდებსა და ჯგუფებში მონაცემები გროვდება 2024 წლის 28 ნოემბრის შემდგომი პოსტებიდან. ეს ის თარიღია, როდესაც საქართველოს პრემიერმინისტრმა განაცხადა რომ ქვეყანა 2028 წლამდე დღის წესრიგში აღარ დააყენებს ევროკავშირთან მოლაპარაკებების ეტაპის გახსნას. აღნიშნული მოსახლეობის დიდმა ნაწილმა ანტიდასავლურ ნაბიჯად აღიქვა და მას გრძელვადიანი პროტესტი მოჰყვა, ამიტომაც კვლევის ამ კომპონენტისთვის საწყის ეტაპად მიიჩნევა.
+შერჩეულ გვერდებსა და ჯგუფებში მონაცემები გროვდება 2024 წლის 28 ნოემბრის შემდგომი პოსტებიდან. ეს ის თარიღია, როდესაც საქართველოს პრემიერმინისტრმა განაცხადა რომ ქვეყანა 2028 წლამდე დღის წესრიგში აღარ დააყენებს ევროკავშირთან მოლაპარაკებების ეტაპის გახსნას. აღნიშნული მოსახლეობის დიდმა ნაწილმა ანტიდასავლურ ნაბიჯად აღიქვა და მას გრძელვადიანი პროტესტი მოჰყვა, ამიტომაც კვლევის ამ კომპონენტისთვის საწყის ეტაპად მიიჩნევა. მონაცემები მოიცავს 1-წლიან პერიოდს და სრულდება 2025 წლის 28 ნოემბრის პოსტებით.
 
         ",
         tooltip_narrative = "დიაგრამაზე მოცემულია პოსტების რაოდენობა. ნარატივების ფორმულირება ჩამოყალიბებულია პოსტის შინაარსზე დაყრდნობით.",
@@ -99,7 +99,7 @@ Based on preliminary research and recommendations from a consultative group, 16 
 
 Among the 16 selected public pages/groups are two Azerbaijani-language pages, one Armenian-language page, and one Armenian-language group, as well as a page and a group focused on the Adjara region. It is worth noting that, in the case of the Adjara-focused page and the Azerbaijani-language pages, anti-Western posts are relatively rare and tend to appear only when specific news are covered.
 
-Data is being collected from posts published on the selected pages and groups after November 28, 2024. This date marks the announcement by the Prime Minister of Georgia that the country would not pursue the opening of negotiations with the European Union until at least 2028—a statement that was perceived by a large portion of the population as an anti-Western move and triggered a prolonged wave of protest. As such, it is considered the starting point for this component of the research.
+Data is being collected from posts published on the selected pages and groups after November 28, 2024. This date marks the announcement by the Prime Minister of Georgia that the country would not pursue the opening of negotiations with the European Union until at least 2028—a statement that was perceived by a large portion of the population as an anti-Western move and triggered a prolonged wave of protest. As such, it is considered the starting point for this component of the research. The data cover a one-year period and include posts published up to 28 November 2025.
         ",
         tooltip_narrative = "The diagram shows the number of posts. The narratives are formulated based on the content of the posts.",
         tooltip_n_posts = "The number of posts identified as relevant based on preliminary analysis. A post is considered relevant if it promotes an anti-Western or pro-Russian discourse, refers to the West, or addresses pro-Western protests.",

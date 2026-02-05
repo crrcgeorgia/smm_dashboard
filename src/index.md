@@ -38,6 +38,8 @@ const dailyPosts = FileAttachment("data/daily_posts_by_group.csv")
   .csv({ typed: true })
   .then(rows => rows.map(d => ({ ...d, P_Date: new Date(d.P_Date), n: +d.n })));
 
+// console.log("Loaded dailyPosts:", dailyPosts);
+
 const narratives = FileAttachment("data/narratives_all.csv")
   .csv({ typed: true })
   .then(rows => rows.map(d => ({ ...d, P_Date: new Date(d.P_Date), n: +d.n })));
@@ -121,12 +123,29 @@ function topKBySum(data, keyFn, valueFn, k = 7) {
 // Date-range factory (returns {start, end} Inputs)
 async function makeRange(monthsOffset = -1) {
   const rows = await dailyPosts;
-  // make dates as only date to ignore time component if any
-  const dates = rows.map(d => new Date(d.P_Date.getFullYear(), d.P_Date.getMonth(), d.P_Date.getDate()));
-  console.log(dates);
-  const max = new Date(Math.max(...dates));
+  // filter and show instances with invalid dates. show row number as well
+  const rowIndexed = rows.map((d, i) => ({...d, __rowNum: i + 2})); // +2 for header and 0-based
+  const invalidDates = rows.filter(d => !(d.P_Date instanceof Date) || isNaN(d.P_Date.getTime()));
+  console.log("Invalid dates in dailyPosts data: ", invalidDates);
+  // Filter out invalid dates and ensure we have valid data
+  const validDates = rows
+    .map(d => d.P_Date)
+    .filter(date => date instanceof Date && !isNaN(date.getTime()));
+  
+  if (validDates.length === 0) {
+    console.warn("No valid dates found in dailyPosts data");
+    const fallbackDate = new Date();
+    return {
+      start: Inputs.date({ value: new Date(fallbackDate.getFullYear(), fallbackDate.getMonth() + monthsOffset, 1) }),
+      end: Inputs.date({ value: fallbackDate })
+    };
+  }
+  
+  const max = new Date(Math.max(...validDates.map(d => d.getTime())));
   const start = new Date(max);
+  // console.log("Making range:", {max, start, validDatesCount: validDates.length});
   start.setMonth(start.getMonth() + monthsOffset);
+  
   return {
     start: Inputs.date({ value: start }),
     end: Inputs.date({ value: max })
@@ -159,9 +178,12 @@ const {start: startDateNarr,  end: endDateNarr } = await makeRange(-1);
 const {start: startDateActors, end: endDateActors} = await makeRange(-1);
 const {start: startDateTopics, end: endDateTopics} = await makeRange(-1);
 
-console.log("Date ranges:", {
-  daily: [startDateDaily.value, endDateDaily.value],
-});
+// console.log("Date ranges:", {
+//   daily: [startDateDaily.value, endDateDaily.value],
+//   narratives: [startDateNarr.value, endDateNarr.value],
+//   actors: [startDateActors.value, endDateActors.value],
+//   topics: [startDateTopics.value, endDateTopics.value]
+// });
 
 
 // --- Renderers ---------------------------------------------------------------
@@ -175,7 +197,6 @@ async function renderDailyPostsChart() {
 
   const evTr = t("events", {}), segTr = t("segments", {});
   const s = startDateDaily.value, e = endDateDaily.value;
-
   const dailyData = dailyDataRaw
     .filter(d => d.P_Date >= s && d.P_Date <= e)
     .map(d => ({ ...d, monitoring_group: segTr?.[d.monitoring_group_id] ?? d.monitoring_group }));
@@ -187,7 +208,7 @@ async function renderDailyPostsChart() {
   const ymax = Math.max(1, ...dailyData.map(d => d.n));
   const xMin = d3.utcDay.floor(d3.min(dailyData, d => d.P_Date));
   const xMax = d3.utcDay.offset(d3.utcDay.ceil(d3.max(dailyData, d => d.P_Date)), 1);
-
+  
   return Plot.plot({
     style: { fontFamily: "BPG Arial" },
     marginTop: 70, // more space for labels
@@ -249,6 +270,19 @@ async function renderChartNarratives(group, containerId) {
     d.P_Date >= startDateNarr.value &&
     d.P_Date <= endDateNarr.value
   );
+
+  console.log(
+    narratives.filter(d =>
+      d.monitoring_group === group 
+    )
+  );
+
+  // console.log(
+  //   narratives.filter(d =>
+  //     (group === "All" || d.monitoring_group === group) &&
+  //     d.P_Date >= startDateNarr.value &&
+  //     d.P_Date <= endDateNarr.value
+  // ));
 
   if (!data.length) {
     document.getElementById(containerId).innerHTML = `<p>${t("no_data")}</p>`;

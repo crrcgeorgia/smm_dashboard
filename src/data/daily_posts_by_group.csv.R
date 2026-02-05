@@ -1,8 +1,9 @@
 library(tidyverse)
 library(readxl)
+library(lubridate)
 
+init_data <- read_excel("src/data/dashboard_data.xlsx")
 
-init_data <- read_excel("src/data/dashboard_data.xlsx") 
 
 narratives_src <- read_excel("src/data/dashboard_data.xlsx", col_names = F, sheet = "ნარატივები") |>
   select(-3) |>
