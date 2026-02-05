@@ -121,7 +121,9 @@ function topKBySum(data, keyFn, valueFn, k = 7) {
 // Date-range factory (returns {start, end} Inputs)
 async function makeRange(monthsOffset = -1) {
   const rows = await dailyPosts;
-  const dates = rows.map(d => d.P_Date);
+  // make dates as only date to ignore time component if any
+  const dates = rows.map(d => new Date(d.P_Date.getFullYear(), d.P_Date.getMonth(), d.P_Date.getDate()));
+  console.log(dates);
   const max = new Date(Math.max(...dates));
   const start = new Date(max);
   start.setMonth(start.getMonth() + monthsOffset);
@@ -156,6 +158,11 @@ const {start: startDateDaily, end: endDateDaily} = await makeRange(-1);
 const {start: startDateNarr,  end: endDateNarr } = await makeRange(-1);
 const {start: startDateActors, end: endDateActors} = await makeRange(-1);
 const {start: startDateTopics, end: endDateTopics} = await makeRange(-1);
+
+console.log("Date ranges:", {
+  daily: [startDateDaily.value, endDateDaily.value],
+});
+
 
 // --- Renderers ---------------------------------------------------------------
 
